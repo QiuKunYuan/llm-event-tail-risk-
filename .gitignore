@@ -1,0 +1,21 @@
+# 数据文件不入库（RESSET授权限制）
+*.xlsx
+*.zip
+data/raw/
+RESSET论文数据/
+
+# 他人论文与参考文献（版权）
+*.pdf.zip
+
+# macOS
+.DS_Store
+
+# Python（后续实验代码用）
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# 临时文件
+*.tmp
+~$*
