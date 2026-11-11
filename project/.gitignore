@@ -1,0 +1,6 @@
+outputs/*
+!outputs/.gitkeep
+reports/*.json
+__pycache__/
+*.py[cod]
+
