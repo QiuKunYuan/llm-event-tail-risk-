@@ -12,6 +12,7 @@
 - docs/数据现状与缺口.md：根据当前本地文件核对的已有数据与实际缺项。
 - docs/数据字段映射与质量审计.md：RESSET 原字段映射、全表覆盖/缺失审计、时点合并规则。
 - docs/标签和基线审计结论.md：标签口径与当前首轮时间外基线的审计结果。
+- docs/毕业设计任务树与前期内容审计.md：从最终论文倒拆到可勾选的小任务，并记录前期材料的冲突、缺项和待配合事项。
 - docs/公告人工标注规范-v1.md：业绩预告事件语义的标注字段与裁决规则。
 - docs/公告模型微调运行说明.md：标注包、SFT 数据转换和租用 GPU 上的 QLoRA 命令。
 - config/project.json：样本范围、标签定义和因子口径。
@@ -38,7 +39,7 @@ python3 project/scripts/audit_processed_inputs.py
 python3 project/scripts/audit_label_panel.py
 ~~~
 
-取得 DRESSTK CSV 后，先整理行情。每段导出保存为一个文件：
+当前主线不要求补导 DRESSTK；只有导师要求扩展样本期或增加成交/换手/市值特征时，才运行行情整理。每段导出保存为一个文件：
 
 ~~~bash
 python3 project/scripts/normalize_daily_market.py \
@@ -48,7 +49,7 @@ python3 project/scripts/normalize_daily_market.py \
 
 需要追加多个时段时，把多个输入文件同时传给 --input；程序按输入顺序流式写出，不会将数百万行一次性读入内存。排序、跨期去重和滚动特征会在后续面板步骤中处理。
 
-数据补齐并完成核对后，重新构造标签：
+需要重建当前标签面板时，先核对本地 DRET 和因子数据范围，再运行：
 
 ~~~bash
 python3 project/scripts/build_labels.py
