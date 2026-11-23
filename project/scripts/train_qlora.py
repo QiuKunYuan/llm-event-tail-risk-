@@ -101,7 +101,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=float, default=3.0)
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--gradient-accumulation", type=int, default=8)
+    parser.add_argument("--gradient-accumulation", type=int, default=16)
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--compute-dtype", choices=("bf16", "fp16"), default="bf16")

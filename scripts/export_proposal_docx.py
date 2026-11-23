@@ -60,5 +60,5 @@ def export(source):
     print(target)
 
 if __name__ == "__main__":
-    for source in [ROOT / "docs/开题方案/实施版研究设计.md", ROOT / "docs/开题报告/开题报告正文-确定方案.md"]:
+    for source in [ROOT / "docs/开题方案/实施版研究设计.md", ROOT / "docs/开题方案/毕设构成与可行性论证.md", ROOT / "docs/开题报告/开题报告正文-确定方案.md"]:
         export(source)

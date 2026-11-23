@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-23-age-bounded-residual-v1",
+  "version": "2026-11-23-age-bounded-residual-v2",
   "title": "披露时点感知的A股短期尾部风险预测",
   "primary_metric": "AP",
   "fold_aggregation": "equal_weight_mean",
@@ -25,5 +25,14 @@
     {"name": "2024-partial", "train_end": "2022-12-31", "validation_start": "2023-01-01", "validation_end": "2023-12-31", "test_start": "2024-01-01", "test_end": "2024-07-24"}
   ],
   "purge_rule": "outcome_end_before_next_split_start",
-  "annotation": {"pilot": 200, "total": 1500, "double": 300, "train_years": [2017, 2018, 2019], "validation_year": 2020, "test_start_year": 2021}
+  "annotation": {"pilot": 200, "total": 1500, "double": 300, "train": 800, "validation": 200, "test": 500, "pilot_is_training_subset": true, "double_is_total_subset": true, "train_years": [2017, 2018, 2019], "validation_year": 2020, "test_start_year": 2021},
+  "qwen": {"base_model": "Qwen/Qwen3-8B", "quantization": "4bit_nf4", "lora_rank": 16, "lora_alpha": 32, "lora_dropout": 0.05, "max_total_tokens": 2048, "initial_body_budget_tokens": 1024, "batch_size": 1, "gradient_accumulation": 16},
+  "graph_messages": "leave_destination_company_out_of_institution_mean",
+  "graph_available": "positive_weight_shared_institution_peer",
+  "sequence_loss": "main_bce_only_no_event_or_graph_supervision",
+  "sequence_structured_controls": false,
+  "seed_aggregation": "mean_seed_AP_not_probability_ensemble",
+  "primary_control_selection": "per_fold_validation_seed_mean_AP_excluding_M",
+  "bootstrap_scope": "within_fold_whole_market_dates_then_equal_fold_mean",
+  "same_information_text_control": "same_frozen_event_vectors_train_only_PCA64"
 }

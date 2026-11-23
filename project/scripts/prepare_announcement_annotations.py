@@ -106,7 +106,10 @@ def main() -> None:
     parser.add_argument("--end-date", default="2024-07-24")
     parser.add_argument("--sample-size", type=int, default=1500)
     parser.add_argument("--double-size", type=int, default=300)
-    parser.add_argument("--seed", type=int, default=20261110)
+    parser.add_argument("--pilot-size", type=int, default=200)
+    parser.add_argument("--train-size", type=int, default=800)
+    parser.add_argument("--validation-size", type=int, default=200)
+    parser.add_argument("--seed", type=int, default=20261123)
     parser.add_argument(
         "--output-dir", type=Path,
         default=PROJECT_ROOT / "outputs" / "annotations",
@@ -172,12 +175,33 @@ def main() -> None:
     rows = [row for row in rows if row["family_id"] not in conflicts]
     if len(rows) < args.sample_size:
         raise ValueError(f"Only {len(rows)} eligible events; requested {args.sample_size}")
-    sample = stratified_sample(rows, args.sample_size, args.seed)
-    double_sample = stratified_sample(sample, min(args.double_size, len(sample)), args.seed + 1)
+    quotas = {"train": args.train_size, "validation": args.validation_size,
+              "test": args.sample_size - args.train_size - args.validation_size}
+    if any(v < 1 for v in quotas.values()):
+        raise ValueError("Positive train/validation/test annotation quotas required")
+    sample = []
+    for offset, (split, count) in enumerate(quotas.items()):
+        pool = [r for r in rows if r["proposed_split"] == split]
+        if len(pool) < count:
+            raise ValueError("Insufficient eligible events in " + split)
+        sample.extend(stratified_sample(pool, count, args.seed + offset * 10))
+    sample.sort(key=lambda r: (r["publication_date"], r["stock_code"], r["record_id"]))
+    training = [r for r in sample if r["proposed_split"] == "train"]
+    if args.pilot_size < 0 or args.pilot_size > len(training):
+        raise ValueError("Pilot must fit inside the main sample's training-year subset")
+    if args.double_size < 0 or args.double_size > len(sample):
+        raise ValueError("Double annotation size must fit inside the main sample")
+    pilot = stratified_sample(training, args.pilot_size, args.seed + 2)
+    double_sample = stratified_sample(sample, args.double_size, args.seed + 1)
     primary_path = args.output_dir / f"earnings_annotations_{len(sample)}_annotator_a.csv"
     double_path = args.output_dir / f"earnings_annotations_double_{len(double_sample)}_annotator_b.csv"
+    pilot_path = args.output_dir / f"earnings_pilot_{len(pilot)}_annotator_a.csv"
+    for path in [primary_path, double_path, pilot_path, args.output_dir / "sampling_report.json"]:
+        if path.exists():
+            raise FileExistsError("Refusing to overwrite an existing annotation pack: " + str(path))
     write_template(primary_path, sample)
     write_template(double_path, double_sample)
+    write_template(pilot_path, pilot)
 
     sample_distribution = Counter(
         f"{row['publication_date'][:4]}|type={row['forecast_type']}" for row in sample
@@ -188,6 +212,9 @@ def main() -> None:
         "eligible_unique_events": len(rows),
         "sample_size": len(sample),
         "double_annotation_size": len(double_sample),
+        "pilot_size": len(pilot),
+        "pilot_is_training_subset_of_main_sample": True,
+        "pilot_template": str(pilot_path),
         "seed": args.seed,
         "exclusions": dict(exclusions),
         "sample_rows_by_year_and_source_forecast_type": dict(sorted(sample_distribution.items())),

@@ -14,6 +14,26 @@ def weighted_mean(messages, index, weights, size):
     return out / denom.clamp_min(1e-8)
 
 
+def peer_messages(messages, companies, institutions, weights, size):
+    """Exclude each destination company from its institution's message.
+
+    One edge per company/institution pair is required after disclosure deduplication.
+    Singleton institutions cannot supply cross-company evidence.
+    """
+    pairs = torch.stack((companies, institutions), dim=1)
+    if len(pairs) != len(torch.unique(pairs, dim=0)):
+        raise ValueError("Duplicate company-institution edge")
+    count = int(institutions.max()) + 1 if institutions.numel() else 0
+    total = messages.new_zeros((count, messages.shape[-1]))
+    denom = weights.new_zeros(count)
+    total.index_add_(0, institutions, messages * weights[:, None])
+    denom.index_add_(0, institutions, weights)
+    peer_weight = denom[institutions] - weights
+    valid = peer_weight > 1e-8
+    peer = (total[institutions] - messages * weights[:, None]) / peer_weight.clamp_min(1e-8)[:, None]
+    return peer * valid[:, None], weights * valid
+
+
 class DisclosureModel(nn.Module):
     """One market-day graph per batch; nodes include sampled neighbor companies.
 
@@ -24,8 +44,10 @@ class DisclosureModel(nn.Module):
     """
     def __init__(self, features=4, event_dim=128, hidden=128, mode="full", structured_dim=0):
         super().__init__()
-        if mode not in {"full", "sequence", "concat", "no_age", "age_feature", "no_quality", "no_graph", "no_event"}:
+        if mode not in {"full", "sequence", "concat", "no_age", "age_feature", "no_quality", "no_graph", "no_event", "no_aux_loss", "no_edge_decay"}:
             raise ValueError(mode)
+        if mode == "sequence" and structured_dim:
+            raise ValueError("Returns-only sequence baseline cannot receive structured event controls")
         self.mode = mode
         self.structured_dim = structured_dim
         self.gru = nn.GRU(features * 2, 64, batch_first=True)
@@ -40,7 +62,7 @@ class DisclosureModel(nn.Module):
         self.graph_head = nn.Linear(hidden, 1)
         self.event_gate = nn.Linear(hidden * 2 + 3, 1)
         self.graph_gate = nn.Linear(hidden * 2 + 3, 1)
-        self.concat_head = nn.Linear(hidden * 3 + 6, 1)
+        self.concat_head = nn.Linear(hidden * 3 + 6 + structured_dim, 1)
         self.age_rates = nn.Parameter(torch.full((3,), -2.0))
 
     def forward(self, b):
@@ -54,7 +76,7 @@ class DisclosureModel(nn.Module):
         age_on = self.mode not in {"no_age", "age_feature"}
         quality = b["event_quality"].clamp(0, 1) if self.mode != "no_quality" else torch.ones_like(b["event_quality"])
         em = b["event_mask"].bool() & (quality > 0)
-        if self.mode == "no_event":
+        if self.mode in {"no_event", "sequence"}:
             em = torch.zeros_like(em)
         ev = torch.tanh(self.event_proj(torch.where(em[..., None], b["events"], 0.)))
         ea = b["event_age"].clamp_min(0) / 60
@@ -69,15 +91,14 @@ class DisclosureModel(nn.Module):
         q = (quality * em).sum(1) / em.sum(1).clamp_min(1)
         ci, ii = b["edges"].long()
         shares = b["edge_share"].clamp_min(0)
-        if age_on:
+        if age_on and self.mode != "no_edge_decay":
             shares = shares * torch.exp(-F.softplus(self.age_rates[1]) * b["edge_age"].clamp_min(0) / 252)
-        if self.mode == "no_graph":
+        if self.mode in {"no_graph", "sequence"}:
             shares = torch.zeros_like(shares)
-        institutions = int(ii.max()) + 1 if ii.numel() else 0
-        ih = weighted_mean(torch.tanh(self.company_message(s[ci])), ii, shares, institutions)
-        gh = weighted_mean(torch.tanh(self.institution_message(ih[ii])), ci, shares, n)
+        ih, peer_shares = peer_messages(torch.tanh(self.company_message(s[ci])), ci, ii, shares, n)
+        gh = weighted_mean(torch.tanh(self.institution_message(ih)), ci, peer_shares, n)
         available_g = x.new_zeros(n)
-        available_g.index_add_(0, ci, shares)
+        available_g.index_add_(0, ci, peer_shares)
         available_g = (available_g > 0).to(x.dtype)
         g = torch.tanh(self.graph_proj(torch.cat((s, gh), -1))) * available_g[:, None]
         ga = b["graph_age"].clamp_min(0) / 252
@@ -104,14 +125,22 @@ class DisclosureModel(nn.Module):
         if self.mode == "sequence":
             z = zs
         if self.mode == "concat":
-            z = self.concat_head(torch.cat((s, e, g, e_meta, g_meta), -1)).squeeze(-1)
+            joined = torch.cat((s, e, g, e_meta, g_meta), -1)
+            if self.structured_dim:
+                joined = torch.cat((joined, controls), -1)
+            z = self.concat_head(joined).squeeze(-1)
         return {"logit": z, "sequence_logit": zs, "event_logit": ze, "graph_logit": zg,
-                "event_weight": ae, "graph_weight": ag, "event_available": available_e, "graph_available": available_g}
+                "event_weight": ae, "graph_weight": ag, "event_available": available_e, "graph_available": available_g,
+                "use_auxiliary_loss": self.mode not in {"sequence", "no_aux_loss"}}
 
     @staticmethod
     def loss(out, labels, supervised=None):
         selected = torch.ones_like(labels, dtype=torch.bool) if supervised is None else supervised.bool()
+        if not selected.any():
+            raise ValueError("Batch has no supervised target companies")
         loss = F.binary_cross_entropy_with_logits(out["logit"][selected], labels[selected])
+        if not out["use_auxiliary_loss"]:
+            return loss
         loss = loss + .2 * F.binary_cross_entropy_with_logits(out["sequence_logit"][selected], labels[selected])
         for branch in ("event", "graph"):
             m = selected & out[branch + "_available"].bool()

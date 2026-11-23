@@ -1,5 +1,5 @@
 # Install the appropriate CPU/CUDA PyTorch wheel separately.
 torch>=2.5,<3
 numpy>=1.26,<3
-pandas>=2.2,<3
+pandas>=2.2,<4
 scikit-learn>=1.5,<2

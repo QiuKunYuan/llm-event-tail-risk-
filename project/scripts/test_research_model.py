@@ -1,7 +1,7 @@
 """Synthetic functional tests; no claim about financial performance."""
 import unittest
 import torch
-from research_model import DisclosureModel
+from research_model import DisclosureModel, peer_messages
 
 
 def batch():
@@ -41,7 +41,7 @@ class ModelTests(unittest.TestCase):
 
     def test_one_training_step_and_all_modes(self):
         b = batch()
-        for mode in ["full", "sequence", "concat", "no_age", "age_feature", "no_quality", "no_event", "no_graph"]:
+        for mode in ["full", "sequence", "concat", "no_age", "age_feature", "no_quality", "no_event", "no_graph", "no_aux_loss", "no_edge_decay"]:
             model = DisclosureModel(mode=mode)
             optimizer = torch.optim.AdamW(model.parameters(), lr=.001)
             before = model.sequence_head.weight.detach().clone()
@@ -49,6 +49,58 @@ class ModelTests(unittest.TestCase):
             optimizer.zero_grad(); loss.backward(); optimizer.step()
             self.assertTrue(torch.isfinite(loss))
             self.assertFalse(torch.equal(before, model.sequence_head.weight))
+
+    def test_singleton_institution_is_not_graph_information(self):
+        b = batch(); b["edges"][1] = torch.arange(6)
+        out = DisclosureModel()(b)
+        self.assertFalse(out["graph_available"].any())
+        self.assertFalse(out["graph_weight"].any())
+
+    def test_leave_self_out(self):
+        m = torch.tensor([[100.], [2.], [3.]])
+        peer, weights = peer_messages(m, torch.tensor([0, 1, 2]), torch.tensor([0, 0, 1]), torch.ones(3), 3)
+        torch.testing.assert_close(peer, torch.tensor([[2.], [100.], [0.]]))
+        torch.testing.assert_close(weights, torch.tensor([1., 1., 0.]))
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
+            peer_messages(m[:2], torch.tensor([0, 0]), torch.tensor([0, 0]), torch.ones(2), 1)
+
+    def test_returns_only_loss_ignores_auxiliary_information(self):
+        import copy
+        b = batch(); alt = copy.deepcopy(b)
+        alt["events"].fill_(float("nan")); alt["event_mask"].zero_()
+        alt["edges"] = torch.empty((2, 0), dtype=torch.long)
+        alt["edge_share"] = alt["edge_age"] = torch.empty(0)
+        model = DisclosureModel(mode="sequence")
+        gradients = []
+        for item in [b, alt]:
+            model.zero_grad(set_to_none=True)
+            out = model(item)
+            loss = model.loss(out, item["label"], item["supervised"])
+            loss.backward()
+            gradients.append(model.gru.weight_ih_l0.grad.clone())
+            self.assertIsNone(model.event_proj.weight.grad)
+            self.assertIsNone(model.company_message.weight.grad)
+        torch.testing.assert_close(*gradients, rtol=0, atol=0)
+        with self.assertRaisesRegex(ValueError, "structured"):
+            DisclosureModel(mode="sequence", structured_dim=1)
+
+    def test_concat_receives_same_structured_controls(self):
+        b = batch(); b["structured"] = torch.zeros(6, 1)
+        model = DisclosureModel(mode="concat", structured_dim=1)
+        with torch.no_grad():
+            model.concat_head.weight.zero_(); model.concat_head.bias.zero_()
+            model.concat_head.weight[0, -1] = 1
+        before = model(b)["logit"]
+        b["structured"].fill_(1)
+        after = model(b)["logit"]
+        torch.testing.assert_close(after - before, torch.ones(6))
+
+    def test_no_auxiliary_loss_is_main_bce(self):
+        b = batch(); model = DisclosureModel(mode="no_aux_loss"); out = model(b)
+        target = b["supervised"]
+        expected = torch.nn.functional.binary_cross_entropy_with_logits(out["logit"][target], b["label"][target])
+        torch.testing.assert_close(model.loss(out, b["label"], target), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

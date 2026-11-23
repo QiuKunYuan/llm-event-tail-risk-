@@ -2,34 +2,36 @@
 
 **题目：披露时点感知的A股短期尾部风险预测。**
 
-每天收盘，使用已知收益、三因子、公告和机构持股关系，预测同一公司未来五个市场交易日的条件尾部标签。固定主模型为GRU、Qwen3-8B QLoRA、年龄加权二部GraphSAGE式消息和披露年龄约束的有界残差融合。全部模块属于主线。
+每天收盘，使用已知收益、三因子、公告和机构持股关系，预测同一公司未来五个市场交易日的条件尾部标签。固定主模型为60日GRU、Qwen3-8B QLoRA、去自身的年龄加权二部GraphSAGE式消息和披露年龄约束的有界残差融合。全部模块属于主线，不列最低路线或扩展选项。
 
 ## 阅读与交付入口
 
-- [完整研究设计报告](docs/开题方案/实施版研究设计.md)｜[可编辑Word稿](docs/开题方案/实施版研究设计.docx)：标签、算法公式、数据契约、训练与验收。
-- [详细开题正文](docs/开题报告/开题报告正文-确定方案.md)｜[可编辑Word稿](docs/开题报告/开题报告正文-确定方案.docx)。
-- [20页开题PPT](docs/开题报告/开题答辩汇报.pptx)。
-- [同方向文献核验](docs/开题报告/同方向文献核验与题目论证.md)：MSGCA全文已读，部分全文与专利权利要求仍受访问限制。
-- [任务树](project/docs/毕业设计任务树与前期内容审计.md)｜[日程](project/docs/毕业设计周计划-2026-11至2027-02.md)｜[交接](docs/交接/毕设项目交接说明-2026-11-23.md)。
-- [首轮基线记录](docs/实验记录/首轮同样本基线比较.md)｜[数据字段审计](project/docs/数据字段映射与质量审计.md)。
+1. [毕设最终构成与可行性论证](docs/开题方案/毕设构成与可行性论证.md)｜[Word](docs/开题方案/毕设构成与可行性论证.docx)：需求、六层树、算法复杂性、资源预算、论文六章与CCF-B证据门槛。
+2. [完整研究设计](docs/开题方案/实施版研究设计.md)｜[Word](docs/开题方案/实施版研究设计.docx)：标签、公式、数据契约、对照和验收。
+3. [详细开题正文](docs/开题报告/开题报告正文-确定方案.md)｜[Word](docs/开题报告/开题报告正文-确定方案.docx)｜[24页开题PPT](docs/开题报告/开题答辩汇报.pptx)。
+4. [六层叶任务与逐文档审计](project/docs/毕业设计任务树与前期内容审计.md)｜[执行日程](project/docs/毕业设计周计划-2026-11至2027-02.md)｜[精简交接](docs/交接/毕设项目交接说明-2026-11-23.md)。
+5. [同方向文献核验](docs/开题报告/同方向文献核验与题目论证.md)｜[首轮基线记录](docs/实验记录/首轮同样本基线比较.md)｜[字段审计](project/docs/数据字段映射与质量审计.md)。
 
-## 当前实现与结果边界
+## 当前实际状态
 
-标签面板6,116,554公司日，2017-02-06至2024-07-24；P10正类率10.94%。先导11特征Logit平均AP=0.221784，LightGBM=0.236579。差约1.48个百分点是已有表格模型的比较，不是新设计提升。
+- 已有标签6,116,554公司日，2017-02-06至2024-07-24，P10正类率10.94%；本轮未独立重建全量标签，正式版本仍待复验。
+- 先导11特征Logit平均AP=0.221784，LightGBM=0.236579。差约1.48个百分点是旧表格模型比较，不是新设计提升；旧Top10按全年混排，不是每日预警。
+- 股东字段已修复并在仓库外重加工403.7万行。206,223候选组中189,735有重复排名；完整名单、主体与历史版本未认证，`main_graph_ready=false`。
+- 公告空模板已按800训练/200验证/500测试生成；200试标和300双标是子集。**当前人工金标为0，本机无CUDA，未做Qwen训练。**
+- **18项功能测试通过**：时点/purge、严格JSON、缺失回退/上界/梯度、去自身/独享机构、仅收益监督隔离、拼接结构输入、折内块CI及双方种子AP均值。
+- 正文缓存、共享索引真实日装配器、普通门控/MSGCA和图方向适配、正式强表格调参及矩阵调度仍待开发。现有训练入口消费审计NPZ，不是已完成RESSET全链路。
 
-原型新增可运行的模型、时间规则、按折训练入口和每日Top10/区块CI评价。完整模型仍需人工金标、股东历史版本核验、RESSET日批次接入和GPU训练。相关方向已有文献，方法的新意以同信息对照和消融检验，不预设胜出。
+## 运行与再生成
 
-## 运行
-
-先安装与设备对应的PyTorch，再安装 requirements-research.txt；表格基线另见 requirements-baseline.txt，QLoRA依赖见 requirements-qlora.txt。
+先安装与设备匹配的PyTorch，再安装`requirements-research.txt`；表格基线、QLoRA分别见`requirements-baseline.txt`与`requirements-qlora.txt`。本地测试包目录为`/home/admin/workspace/.python-packages`，按需设置PYTHONPATH；正式CPU/GPU环境须分别冻结。
 
 ```bash
 python3 -m unittest discover -s project/scripts -p 'test_*.py' -v
 python3 project/scripts/train_research_model.py --manifest /path/to/audited_fold/manifest.json --output-dir /path/outside/repo/model --device cuda
-python3 project/scripts/evaluate_predictions.py --input /path/to/paired_predictions.csv --model prediction --baseline baseline
+python3 project/scripts/evaluate_predictions.py --input /path/to/frozen_paired.csv --seed-models m42 m2024 m7 m123 m3407 --seed-baselines b42 b2024 b7 b123 b3407
 ```
 
-训练输入是一日一份审计NPZ，契约见研究报告第14节。输出必须在仓库外。四折、种子和指标配置见 project/config/experiment_protocol.json。功能测试用合成数据，不用于金融效果结论。
+四折、种子与时点合同见`project/config/experiment_protocol.json`；当前不是所有脚本都由该文件驱动。主统计先各折各种子AP、再种子均值与四折等权，不能用概率集成AP替代。配对CI在折内抽整日期块；主对照只按验证表现选。
 
 ```bash
 npm install
@@ -37,6 +39,6 @@ npm run generate:proposal
 python3 scripts/export_proposal_docx.py
 ```
 
-Word为Markdown内容的可编辑导出，公式保留源表示；学院模板、公式排版和最终参考文献格式需按学校要求处理。PPT与Word均可从版本化源码重新生成。
+Word为Markdown的可编辑导出，公式保留源表示。包/XML验收不等于Office视觉验收；学院模板、公式与引用格式仍需终稿处理。
 
-RESSET原始数据、公告正文、逐样本预测、模型权重和密钥不得推送。已删除旧四因子整体方案、旧导师汇报和重复入口，避免与固定方案混用。
+公开仓库只保存方法、代码和非敏感聚合。RESSET原始数据、公告正文、逐样本预测、模型权重、密钥均不得推送。已审阅后删除四个旧PNG/drawio；原始ZIP、唯一背景资料及仓库外原方案/参考文献保留。
