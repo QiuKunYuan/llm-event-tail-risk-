@@ -7,8 +7,8 @@ const path = require("path");
 const pptx = new pptxgen();
 pptx.layout = "LAYOUT_WIDE";
 pptx.author = "毕业设计开题汇报";
-pptx.subject = "时点感知门控融合的A股尾部风险预测";
-pptx.title = "时点感知门控融合的A股尾部风险预测";
+pptx.subject = "披露时点感知的A股短期尾部风险预测";
+pptx.title = "披露时点感知的A股短期尾部风险预测";
 pptx.company = "";
 pptx.lang = "zh-CN";
 pptx.theme = {
@@ -76,7 +76,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
   arrow(s, 10.12, 3.7, 9.7, 4.3, "8BA1B8", 1);
   arrow(s, 10.2, 3.55, 10.75, 2.75, "8BA1B8", 1);
   text(s, "硕士学位论文开题报告", 0.85, 1.0, 6.9, 0.4, { fontSize: 17, color: "81D0C6", bold: true });
-  text(s, "时点感知门控融合的\nA股尾部风险预测", 0.85, 1.8, 7.4, 1.65, { fontSize: 31, color: C.white, bold: true, breakLine: false, valign: "mid", lineSpacingMultiple: 1.15 });
+  text(s, "披露时点感知的\nA股短期尾部风险预测", 0.85, 1.8, 7.4, 1.65, { fontSize: 31, color: C.white, bold: true, breakLine: false, valign: "mid", lineSpacingMultiple: 1.15 });
   s.addShape(S.line, { x: 0.88, y: 3.82, w: 1.1, h: 0, line: { color: C.gold, width: 3 } });
   text(s, "公告事件  ·  收益时序  ·  机构持股图", 0.88, 4.12, 6.6, 0.42, { fontSize: 17, color: "D6E1EC" });
   text(s, "研究对象：公司自身未来五个交易日的条件异常下跌风险", 0.88, 4.75, 7.4, 0.6, { fontSize: 13, color: "ACBED0", breakLine: false });
@@ -136,16 +136,16 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
 
 // 5 literature
 {
-  const s = slide("同方向研究已存在：本课题不能靠“首次使用”立论", "文献定位");
-  card(s, 0.78, 1.5, 3.75, 3.6, "持股关系 × 崩盘风险", "Hou & Liu（2023）\n\n直接研究机构交叉持股与股价崩盘风险。\n\n本课题：改为日频五日预测，并联合公告与时点图。", C.blue, C.white, 14);
-  card(s, 4.8, 1.5, 3.75, 3.6, "A股文本 × 崩盘风险", "彭俞超等（2023）\n\n用年报文本研究预判性数字化披露与未来崩盘风险。\n\n本课题：公告事件语义和样本外预测增量。", C.teal, C.white, 14);
-  card(s, 8.82, 1.5, 3.75, 3.6, "金融图与事件抽取", "Cheng 等（2022）：多模态金融图预测。\nFeng 等（2019）：时变股票关系排序。\nEFSA（2024）：中文财经事件抽取。\n\n部件有先例，组合增量待检验。", C.gold, C.white, 13);
-  note(s, "研究定位：具体预测任务、真实披露时点和可用性感知门控的同样本检验；不是宣称相关领域无人研究。");
+  const s = slide("同方向研究已有近邻：不把 LLM、图或门控本身称为原创", "文献定位");
+  card(s, 0.78, 1.5, 3.75, 3.6, "风险目标 × 时序/多关系图", "Jing et al.（2024）使用 Graph WaveNet；中国专利 CN117808586A（2024）摘要披露时间序列＋多关系 GNN 预测股价崩盘风险。\n\n任务和方法骨架高度接近。需核验专利全文/权利要求，并把改造版 Graph WaveNet 纳入同标签对照。", C.blue, C.white, 12);
+  card(s, 4.8, 1.5, 3.75, 3.6, "三模态预测 × 门控交叉注意力", "Zong et al.（2025），MSGCA\n\n指标序列＋动态文本＋关系图，使用门控交叉注意力。\n\n架构高度接近，列入直接模型基线。", C.teal, C.white, 14);
+  card(s, 8.82, 1.5, 3.75, 3.6, "金融 LLM × 多关系动态融合", "Yi et al.（2026）\n\nLLM＋股票文本/价格＋多关系动态融合。\n\n标签和披露口径不同；仍需全文与中文数据库查重。", C.gold, C.white, 13);
+  note(s, "已发现目标与方法骨架高度接近的中国专利，当前不能声称方向不重复。披露时点/边龄机制是否构成足够区别，须完成专利、学位论文查重并由导师确认。");
 }
 
 // 6 gap
 {
-  const s = slide("研究切口：把不同频率、不同新旧程度的信息放到同一预测时点", "研究定位");
+  const s = slide("研究切口：按预测时点重建可用信息，检验五日尾部风险增量", "研究定位");
   const rows = [
     ["日收益", "每天变化", "GRU 编码最近 60 个交易日"],
     ["公告事件", "不定期发布", "只从公告公开后生效，聚合最近 20 日"],
@@ -160,7 +160,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
   });
   s.addShape(S.roundRect, { x: 1.0, y: 5.23, w: 11.3, h: 0.78, rectRadius: 0.1, line: { color: "D8E9E5", width: 0.9 }, fill: { color: "EDF6F3" } });
   text(s, "方法焦点", 1.3, 5.43, 1.4, 0.23, { fontSize: 13, bold: true, color: C.teal });
-  text(s, "门控读取各路是否可用和信息有多旧，再学习各路贡献。", 2.95, 5.35, 8.6, 0.4, { fontSize: 16, bold: true, color: C.navy });
+  text(s, "显式记录公告/持股何时可用、持股边有多旧；与 MSGCA 式普通门控直接比较。", 2.95, 5.35, 8.6, 0.4, { fontSize: 15, bold: true, color: C.navy });
 }
 
 // 7 hypotheses
@@ -170,7 +170,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
     ["H1", "GRU 时序", "日收益序列能否超越无技能与表格参照？", C.blue],
     ["H2", "公告增量", "公告事件语义能否增加风险排序信息？", C.teal],
     ["H3", "图增量", "共同机构持股图能否提供额外关系信息？", C.gold],
-    ["H4", "门控机制", "可用性与边龄门控是否优于简单拼接？", C.green],
+    ["H4", "时点机制", "可用性/边龄条件融合是否优于 MSGCA 式普通门控？", C.green],
   ];
   hs.forEach((h, i) => {
     const y = 1.5 + i * 1.12;
@@ -189,7 +189,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
   const bx = [0.8, 0.8, 0.8], by = [1.55, 3.12, 4.69];
   const labels = [
     ["收益序列", "60 日 GRU", C.blue, C.paleBlue],
-    ["公告事件", "Qwen3-1.7B QLoRA + 时间聚合", C.teal, C.paleTeal],
+    ["公告事件", "Qwen3-8B QLoRA + 时间聚合", C.teal, C.paleTeal],
     ["机构持股", "披露时点图 + GraphSAGE", C.gold, C.paleGold],
   ];
   labels.forEach((b, i) => {
@@ -214,7 +214,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
   const steps = [
     ["原始公告", "业绩预告文本", C.blue],
     ["人工金标", "约 1,500 条；20% 双标", C.teal],
-    ["Qwen3-1.7B", "4-bit QLoRA 微调", C.gold],
+    ["Qwen3-8B", "4-bit QLoRA 微调", C.gold],
     ["结构化事件", "方向、原因、证据", C.green],
   ];
   steps.forEach((v, i) => {
@@ -225,7 +225,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
     if (i < 3) arrow(s, x + 2.5, 2.28, x + 3.03, 2.28, C.gray, 1.4);
   });
   card(s, 1.0, 3.55, 5.1, 1.6, "抽取器评估", "分字段报告 Precision / Recall / F1、JSON 合法率、证据片段正确率和双人一致性。", C.teal, C.white, 14);
-  card(s, 6.75, 3.55, 5.1, 1.6, "公司日事件输入", "预告语义做时间聚合；诉讼仲裁按公开日期构造事件计数和最近事件年龄。比较加入事件前后的同样本 AP 差。", C.blue, C.white, 13);
+  card(s, 6.75, 3.55, 5.1, 1.6, "公司日事件输入", "预告按真实公开时间聚合；诉讼按公开日期计数。比较 RESSET 原生字段、8B零样本与QLoRA下游增量。", C.blue, C.white, 13);
   note(s, "已有约 16.2 万条业绩预告和约 2.1 万条诉讼仲裁；Qwen金标来自业绩预告，完整原文不进入公开仓库。");
 }
 
@@ -295,7 +295,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
 
 // 13 protocol
 {
-  const s = slide("时间外比较：四个测试年，所有模型共享同一切分", "基线设计");
+  const s = slide("强基线比较：相同标签、公司日、时间折", "基线设计");
   const folds=[
     ["测试 2021", "训练 2017–2019", "验证 2020"],
     ["测试 2022", "训练 2017–2020", "验证 2021"],
@@ -310,16 +310,16 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
     text(s,f[2],x+0.15,2.53,2.48,0.18,{fontSize:10,color:C.teal,align:"center"});
   });
   text(s,"统一比较序列",0.92,3.55,2.0,0.27,{fontSize:14,bold:true,color:C.muted});
-  const modelNames=["Logistic","LightGBM","XGBoost","GRU","GRU+公告","GRU+图","拼接/固定权重","完整门控"];
-  modelNames.forEach((n,i)=>pill(s,n,0.95+(i%4)*3.02,4.0+Math.floor(i/4)*0.63,2.35,i===7?C.white:C.blue,i===7?C.navy:C.paleBlue));
-  note(s, "* 2024 测试只覆盖 1–7 月。边界 purge 五个交易日；同一测试公司日用于计算配对增量。");
+  const modelNames=["尾部Logit","LightGBM/XGBoost/CatBoost","GRU","Graph WaveNet","专利启发式多关系GNN","MSGCA","融合消融","时点年龄门控","本研究"];
+  modelNames.forEach((n,i)=>pill(s,n,0.82+(i%3)*4.18,3.88+Math.floor(i/3)*0.57,3.45,i===8?C.white:C.blue,i===8?C.navy:C.paleBlue));
+  note(s, "* 2024 测试只覆盖 1–7 月。验证年选超参数和最强基线；测试集不用于选赢家，所有模型复用同一测试公司日。专利启发式基线须以核验后的全文冻结实现。");
 }
 
 // 14 metrics
 {
-  const s = slide("主要回答“提高多少”：同测试样本上的配对 ΔAP", "评价方法");
+  const s = slide("主要回答“提高多少”：与验证期最强基线做配对 ΔAP", "评价方法");
   s.addShape(S.roundRect,{x:1.1,y:1.55,w:11.1,h:1.05,rectRadius:0.1,line:{color:"D5E7E2",width:1},fill:{color:"EEF6F3"}});
-  text(s,"ΔAP = AP(完整门控模型) − AP(LightGBM)",1.45,1.86,10.4,0.34,{fontSize:21,bold:true,color:C.navy,align:"center"});
+  text(s,"ΔAP = AP(本研究模型) − AP(验证期选定的最强基线)",1.45,1.86,10.4,0.34,{fontSize:19,bold:true,color:C.navy,align:"center"});
   card(s,0.9,3.0,3.6,1.58,"主指标：AP", "适合不平衡标签的正例排序评价。不能叫准确率。",C.teal,C.white,14);
   card(s,4.88,3.0,3.6,1.58,"风险名单", "Recall@Top10% + Precision@Top10%，说明有限审核容量的表现。",C.blue,C.white,14);
   card(s,8.86,3.0,3.6,1.58,"统计不确定性", "20 个交易日区块 bootstrap；另报 5 / 60 日区块敏感性。",C.gold,C.white,14);
@@ -329,7 +329,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
 
 // 15 pilot baseline
 {
-  const s = slide("已有先导基线：量价信息已有明显排序信号", "当前实证");
+  const s = slide("先导量价基线：LightGBM AP 0.2366，尚不是完整强基线", "当前实证");
   const vals=[
     ["无技能参照",0.1072,C.gray],
     ["下行波动 Logistic",0.1307,C.gold],
@@ -344,19 +344,19 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
   });
   s.addShape(S.roundRect,{x:1.0,y:5.2,w:11.2,h:0.88,rectRadius:0.09,line:{color:"F0DEBB",width:0.8},fill:{color:"FCF6E9"}});
   text(s,"边界",1.28,5.43,0.85,0.23,{fontSize:13,bold:true,color:"9B6A17"});
-  text(s,"4 个测试期平均 AP；固定参数试跑，无独立验证期、无日期区块置信区间。公告和图尚未接入。",2.28,5.34,9.4,0.39,{fontSize:12,color:C.ink});
-  note(s,"正式实验需冻结新时间协议并重跑基线；这组 AP 仅作现有参照，不能预告新模型提高幅度。");
+  text(s,"4 个测试期等权平均 AP；固定参数先导，无验证调参/区块区间；公告和图尚未接入。",2.28,5.34,9.4,0.39,{fontSize:12,color:C.ink});
+  note(s,"CatBoost、XGBoost、Graph WaveNet、MSGCA 尚未在本地统一切分上运行；不把先导值写成最终结果。");
 }
 
 // 16 schedule
 {
   const s = slide("从开题到 2 月初稿：四个月按交付推进", "进度安排");
   const items=[
-    ["11/23–11/27","开题定稿","题目、同类文献、PPT",C.blue],
-    ["11/28–12/20","数据与基线","时点审计、正式切分、GRU",C.teal],
+    ["11/23–11/27","开题定稿","文献/专利查重、题目、PPT",C.blue],
+    ["11/28–12/20","数据与强基线","时点审计、GBDT、GRU、Graph WaveNet",C.teal],
     ["12/21–01/04","公告模型","人工标注、QLoRA、独立测试",C.gold],
     ["01/05–01/18","股东图","实体映射、时点图、GraphSAGE",C.green],
-    ["01/19–01/31","融合实验","门控、消融、区间估计",C.blue],
+    ["01/19–01/31","融合实验","专利式GNN、MSGCA对照、时点门控",C.blue],
     ["02/01–02/28","论文交付","2/7初稿、2月底修改稿",C.teal],
   ];
   items.forEach((v,i)=>{
@@ -372,24 +372,25 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
 // 17 contribution / close
 {
   const s = slide("预期贡献与答辩时应坚持的结论边界", "结论框架");
-  card(s,0.82,1.53,3.72,2.05,"方法贡献", "将信息可用状态和持股披露年龄纳入多源门控融合，并与简单拼接直接比较。",C.teal,C.white,14);
-  card(s,4.8,1.53,3.72,2.05,"数据流程贡献", "明确公告与持股记录的真实公开时点，减少信息提前进入预测特征的风险。",C.blue,C.white,14);
-  card(s,8.78,1.53,3.72,2.05,"实证贡献", "在一致公司日、锁定时间折和区块区间下，测量公告、图和门控各自的增量。",C.gold,C.white,14);
+  card(s,0.82,1.53,3.72,2.05,"预测目标贡献", "用公司日五日因子残差P10标签，区别于年度崩盘代理和一般涨跌方向。",C.teal,C.white,14);
+  card(s,4.8,1.53,3.72,2.05,"时点流程贡献", "按公告和持股真实公开时间构造可用信息，并表示图边信息年龄。",C.blue,C.white,14);
+  card(s,8.78,1.53,3.72,2.05,"同任务实证", "同样本比较强树、Graph WaveNet、专利启发式多关系GNN、MSGCA式融合和本研究时点机制。",C.gold,C.white,12);
   s.addShape(S.roundRect,{x:1.0,y:4.15,w:11.35,h:1.15,rectRadius:0.1,line:{color:"EAD6D6",width:0.8},fill:{color:"FBEEEE"}});
   text(s,"不预先保证模型一定提升",1.35,4.4,4.5,0.33,{fontSize:18,bold:true,color:C.red});
-  text(s,"若 ΔAP 不稳定或不显著，仍报告抽取质量、图覆盖和失败原因，不改变测试集或挑选指标。",5.2,4.31,6.6,0.52,{fontSize:13,color:C.ink});
+  text(s,"门控、LLM和GNN已有近邻工作；只对实测且稳定的增量作结论，不能承诺模型一定提升。",5.2,4.31,6.6,0.52,{fontSize:13,color:C.ink});
   text(s,"所有结论以同样本、锁定的时间外结果为准。",2.25,5.82,8.8,0.34,{fontSize:17,bold:true,color:C.navy,align:"center"});
 }
 
 // 18 reference sources
 {
-  const s = slide("主要同方向文献与来源", "参考文献");
+  const s = slide("与本研究最相关的论文和 DOI", "参考文献");
   const refs = [
-    ["Hou & Liu (2023)", "Institutional cross-ownership and stock price crash risk", "DOI: 10.1016/j.ribaf.2023.101906", C.blue],
-    ["彭俞超等（2023）", "企业数字化转型、预判性信息披露与股价暴跌风险", "中央财经大学论文介绍：sf.cufe.edu.cn/info/1157/12762.htm", C.teal],
-    ["Cheng et al. (2022)", "Financial time series forecasting with multi-modality graph neural network", "DOI: 10.1016/j.patcog.2021.108218", C.gold],
-    ["Feng et al. (2019)", "Temporal Relational Ranking for Stock Prediction", "DOI: 10.1145/3309547", C.green],
-    ["Chen et al. (2024)", "EFSA: Towards Event-Level Financial Sentiment Analysis", "ACL Anthology: 2024.acl-long.402", C.blue],
+    ["Jing et al. (2024)", "China stock crash risk; Graph WaveNet", "DOI: 10.1016/j.frl.2024.105468", C.blue],
+    ["Zong et al. (2025), MSGCA", "Stock movement; text + series + graph + gated fusion", "DOI: 10.1007/s40747-025-02023-3", C.teal],
+    ["Yi et al. (2026)", "Financial LLM + multi-relational dynamic stock fusion", "DOI: 10.1007/s11280-026-01444-5", C.gold],
+    ["Institutional networks × crash risk", "Hou & Liu (2023); Investor Network Density (2025)", "DOI: 10.1016/j.ribaf.2023.101906; 10.1111/ecpo.12348", C.green],
+    ["Text × crash risk", "Peng et al. (2023); Banks’ Crash Text (2025)", "A-share annual reports and quarterly bank text; see literature review", C.blue],
+    ["CN patent (2024)", "Crash risk + time series + multi-relation GNN", "CN117808586A; CN202311809825.3; full claims pending", C.red],
   ];
   refs.forEach((r,i)=>{
     const y=1.45+i*0.91;
@@ -398,7 +399,7 @@ function note(s, value, x = 0.72, y = 6.62, w = 11.9) {
     text(s,r[1],3.0,y+0.08,6.0,0.22,{fontSize:11,bold:true,color:C.navy});
     text(s,r[2],3.0,y+0.38,8.8,0.18,{fontSize:9,color:C.muted});
   });
-  note(s,"完整书目和核验边界见仓库文档《同方向文献核验与题目论证》；开题前继续阅读全文核对。");
+  note(s,"完整来源、查重边界和基线协议见仓库《同方向文献核验与题目论证》；公开检索不等于穷尽查重。");
 }
 
 const out = path.resolve(__dirname, "../docs/开题报告/开题答辩汇报.pptx");
