@@ -15,6 +15,7 @@ __pycache__/
 *.pyc
 .venv/
 .ipynb_checkpoints/
+node_modules/
 
 # 临时文件
 *.tmp

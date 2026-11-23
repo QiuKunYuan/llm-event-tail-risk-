@@ -33,9 +33,9 @@ def event_id(row: dict[str, str]) -> str:
 
 def proposed_split(publication_date: str) -> str:
     year = int(publication_date[:4])
-    if year <= 2021:
+    if year <= 2019:
         return "train"
-    if year == 2022:
+    if year == 2020:
         return "validation"
     return "test"
 
@@ -104,8 +104,8 @@ def main() -> None:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--start-date", default="2017-02-06")
     parser.add_argument("--end-date", default="2024-07-24")
-    parser.add_argument("--sample-size", type=int, default=300)
-    parser.add_argument("--double-size", type=int, default=60)
+    parser.add_argument("--sample-size", type=int, default=1500)
+    parser.add_argument("--double-size", type=int, default=300)
     parser.add_argument("--seed", type=int, default=20261110)
     parser.add_argument(
         "--output-dir", type=Path,
@@ -165,8 +165,8 @@ def main() -> None:
         raise ValueError(f"Only {len(rows)} eligible events; requested {args.sample_size}")
     sample = stratified_sample(rows, args.sample_size, args.seed)
     double_sample = stratified_sample(sample, min(args.double_size, len(sample)), args.seed + 1)
-    primary_path = args.output_dir / "earnings_pilot_300_annotator_a.csv"
-    double_path = args.output_dir / "earnings_pilot_060_annotator_b.csv"
+    primary_path = args.output_dir / f"earnings_annotations_{len(sample)}_annotator_a.csv"
+    double_path = args.output_dir / f"earnings_annotations_double_{len(double_sample)}_annotator_b.csv"
     write_template(primary_path, sample)
     write_template(double_path, double_sample)
 

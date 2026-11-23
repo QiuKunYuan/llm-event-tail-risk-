@@ -1,0 +1,10 @@
+{
+  "name": "a-share-tail-risk-thesis-materials",
+  "private": true,
+  "scripts": {
+    "generate:proposal": "node scripts/generate_opening_ppt.js"
+  },
+  "devDependencies": {
+    "pptxgenjs": "4.0.1"
+  }
+}
