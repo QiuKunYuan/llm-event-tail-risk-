@@ -1,0 +1,29 @@
+{
+  "version": "2026-11-23-age-bounded-residual-v1",
+  "title": "披露时点感知的A股短期尾部风险预测",
+  "primary_metric": "AP",
+  "fold_aggregation": "equal_weight_mean",
+  "daily_top_fraction": 0.1,
+  "primary_block_sessions": 20,
+  "sensitivity_block_sessions": [5, 60],
+  "bootstrap_repeats": 1000,
+  "seeds": [42, 2024, 7, 123, 3407],
+  "sequence_sessions": 60,
+  "event_sessions": 60,
+  "max_events": 8,
+  "hidden_dimension": 128,
+  "gru_dimension": 64,
+  "date_only_disclosure": "next_market_session",
+  "shareholder_update": "replace_complete_company_list",
+  "main_share_basis": "pct_total",
+  "loss": "unweighted_bce_plus_branch_auxiliary",
+  "primary_control": "validation_best_same_information_model",
+  "folds": [
+    {"name": "2021", "train_end": "2019-12-31", "validation_start": "2020-01-01", "validation_end": "2020-12-31", "test_start": "2021-01-01", "test_end": "2021-12-31"},
+    {"name": "2022", "train_end": "2020-12-31", "validation_start": "2021-01-01", "validation_end": "2021-12-31", "test_start": "2022-01-01", "test_end": "2022-12-31"},
+    {"name": "2023", "train_end": "2021-12-31", "validation_start": "2022-01-01", "validation_end": "2022-12-31", "test_start": "2023-01-01", "test_end": "2023-12-31"},
+    {"name": "2024-partial", "train_end": "2022-12-31", "validation_start": "2023-01-01", "validation_end": "2023-12-31", "test_start": "2024-01-01", "test_end": "2024-07-24"}
+  ],
+  "purge_rule": "outcome_end_before_next_split_start",
+  "annotation": {"pilot": 200, "total": 1500, "double": 300, "train_years": [2017, 2018, 2019], "validation_year": 2020, "test_start_year": 2021}
+}

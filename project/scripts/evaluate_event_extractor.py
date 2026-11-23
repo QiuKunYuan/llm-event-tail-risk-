@@ -19,25 +19,7 @@ def normalize(value: str) -> str:
     return " ".join(value.strip().split()).lower()
 
 
-def parse_json_output(text: str) -> dict[str, Any] | None:
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
-        return None
-    try:
-        value = json.loads(text[start:end + 1])
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(value, dict):
-        return None
-    if value.get("direction") not in {"改善", "恶化", "基本稳定", "混合", "不明确"}:
-        return None
-    if not isinstance(value.get("causes"), list) or not isinstance(value.get("evidence"), list):
-        return None
-    if not all(isinstance(item, str) for item in value["causes"] + value["evidence"]):
-        return None
-    return value
+from extraction_schema import parse_json_output, strict_json_output
 
 
 def prf(counts: Counter[str]) -> dict[str, float]:
@@ -90,7 +72,7 @@ def main() -> None:
     confusion: Counter[tuple[str, str]] = Counter()
     cause_counts: Counter[str] = Counter()
     evidence_counts: Counter[str] = Counter()
-    total = parseable = supported_evidence = predicted_evidence = 0
+    total = parseable = strict_parseable = supported_evidence = predicted_evidence = 0
     predictions_path = args.output_dir / "predictions.jsonl"
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with args.data.open("r", encoding="utf-8") as source, predictions_path.open(
@@ -122,6 +104,7 @@ def main() -> None:
                 )
             decoded = tokenizer.decode(generated[0, prompt_ids.shape[1]:], skip_special_tokens=True)
             prediction = parse_json_output(decoded)
+            strict_parseable += strict_json_output(decoded) is not None
             total += 1
             if prediction is not None:
                 parseable += 1
@@ -144,7 +127,14 @@ def main() -> None:
             evidence_counts["tp"] += len(gold_evidence & predicted_evidence_set)
             evidence_counts["fp"] += len(predicted_evidence_set - gold_evidence)
             evidence_counts["fn"] += len(gold_evidence - predicted_evidence_set)
-            source_text = normalize(" ".join(message["content"] for message in prompt_messages if message["role"] == "user"))
+            body = item.get("source_text")
+            if body is None:
+                user_content = " ".join(message["content"] for message in prompt_messages if message["role"] == "user")
+                match = re.search(r"<公告正文>\s*(.*?)\s*</公告正文>", user_content, re.DOTALL)
+                if match is None:
+                    raise ValueError("Evaluation requires source_text or marked announcement body")
+                body = match.group(1)
+            source_text = normalize(body)
             predicted_evidence += len(predicted_evidence_set)
             supported_evidence += sum(span in source_text for span in predicted_evidence_set)
             predictions.write(json.dumps({
@@ -167,7 +157,8 @@ def main() -> None:
         "adapter": str(args.adapter) if args.adapter else None,
         "gpu": torch.cuda.get_device_name(0),
         "samples": total,
-        "strict_json_parse_rate": parseable / total if total else 0.0,
+        "strict_json_parse_rate": strict_parseable / total if total else 0.0,
+        "permissive_json_parse_rate": parseable / total if total else 0.0,
         "direction_accuracy": sum(confusion[(label, label)] for label in direction_labels) / total if total else 0.0,
         "direction_macro_f1": sum(direction_f1.values()) / len(direction_f1),
         "direction_f1_by_class": direction_f1,

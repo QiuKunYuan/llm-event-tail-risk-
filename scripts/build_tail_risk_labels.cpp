@@ -395,7 +395,9 @@ int main(int argc, char** argv) {
     row.rf = number(f[6]);
     const Factor& factor = factor_it->second;
     row.x = {1.0, factor.rmrf, factor.smb, factor.hml};
-    row.valid_return = std::isfinite(row.ret) && std::isfinite(row.rf);
+    row.valid_return = std::isfinite(row.ret) && std::isfinite(row.rf)
+                       && std::isfinite(factor.rmrf) && std::isfinite(factor.smb)
+                       && std::isfinite(factor.hml);
     group.push_back(std::move(row));
     ++input_rows;
   }

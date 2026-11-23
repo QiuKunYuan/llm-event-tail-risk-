@@ -95,62 +95,14 @@ def main() -> None:
         if "DFulTurnR" in header or "DTrdTurnR" in header
     ]
 
+    # The thesis scope is fixed to available return data through July 2024.
     gaps: list[dict[str, str]] = []
-    if not market_archives:
-        gaps.append(
-            {
-                "priority": "P0",
-                "item": "日股票综合行情 DRESSTK",
-                "missing": "本地没有对应行情导出；缺价格、成交量/额、换手率、股数等字段。",
-                "action": "补 2014-01 至 2026-01-15，覆盖预热期、预测期和未来五日标签。",
-            }
-        )
-    if not turnover_value_fields:
-        gaps.append(
-            {
-                "priority": "P0",
-                "item": "有数值列的日换手率",
-                "missing": "现有 DTURNR 工作簿审计到的字段没有 DFulTurnR/DTrdTurnR。",
-                "action": "从 DRESSTK 选换手率字段；若该表不含，再重新导出含数值列的 DTURNR。",
-            }
-        )
-    if not covers(return_max, "2026-01-15"):
-        gaps.append(
-            {
-                "priority": "P0",
-                "item": "个股收益尾部日期",
-                "missing": f"本地实际最大日期为 {return_max or '未知'}，标签输入目标至少到 2026-01-15。",
-                "action": "补实际缺失日期；若 DRESSTK 含 Dret/Daret，可用来补齐并交叉核验。",
-            }
-        )
-    if not covers(factor_max, "2026-01-15"):
-        gaps.append(
-            {
-                "priority": "P0",
-                "item": "日三因子尾部日期",
-                "missing": f"本地实际最大日期为 {factor_max or '未知'}。",
-                "action": "只补到 2026-01-15，不重复下载已有的 2015—2025 因子。",
-            }
-        )
-    if not basic_archives:
-        gaps.append(
-            {
-                "priority": "P1核对",
-                "item": "股票基本信息/历史证券映射",
-                "missing": "没有独立的基本信息压缩包；当前有上市状态变更表。",
-                "action": "先确认变更表是否含上市/退市日期及代码/简称生效期，缺什么再补什么。",
-            }
-        )
-    if not finance_archives:
-        gaps.append(
-            {
-                "priority": "可选",
-                "item": "独立财务报表",
-                "missing": "本地目录没有独立财务报表/财务指标压缩包。",
-                "action": "仅当加入财务特征或自行构造账面市值比时下载，并保留信息发布日期。",
-            }
-        )
-
+    for maximum, name in [(return_max, "个股收益"), (factor_max, "日三因子")]:
+        if not covers(maximum, "2024-07-31"):
+            gaps.append({"priority": "P0", "item": name + "标签输入覆盖",
+                         "missing": f"实际最大日期为 {maximum or '未知'}",
+                         "action": "核对现有文件与2024-07-31标签截止，禁止按ZIP名称推定日期。"})
+    # Price, turnover and financial statements are outside the fixed input contract.
     result = {
         "data_root": str(root),
         "daily_returns": {

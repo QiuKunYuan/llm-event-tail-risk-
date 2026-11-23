@@ -9,6 +9,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from datetime import date
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -56,11 +57,13 @@ def main() -> None:
 
     written: Counter[str] = Counter()
     seen_ids: set[str] = set()
+    seen_content_split: dict[str, str] = {}
+    seen_family_split: dict[str, str] = {}
     skipped_adjudication = 0
     with source_path.open("r", encoding="utf-8-sig", newline="") as source:
         reader = csv.DictReader(source)
         required = {
-            "record_id", "publication_date", "forecast_text", "proposed_split",
+            "record_id", "family_id", "publication_date", "forecast_text", "proposed_split",
             "direction", "causes_json", "evidence_json", "needs_adjudication",
         }
         missing = required - set(reader.fieldnames or [])
@@ -77,6 +80,10 @@ def main() -> None:
                     raise ValueError(f"Missing or duplicate record_id: {record_id!r}")
                 seen_ids.add(record_id)
                 split = row["proposed_split"].strip()
+                year = date.fromisoformat(row["publication_date"][:10]).year
+                expected = "train" if 2017 <= year <= 2019 else "validation" if year == 2020 else "test" if year >= 2021 else None
+                if split != expected:
+                    raise ValueError(f"{record_id}: split {split} conflicts with publication year {year}")
                 if split not in outputs:
                     raise ValueError(f"{record_id}: unsupported split {split!r}")
                 if row["needs_adjudication"].strip().lower() in {"yes", "y", "是", "待裁决"}:
@@ -86,6 +93,13 @@ def main() -> None:
                 if direction not in VALID_DIRECTIONS:
                     raise ValueError(f"{record_id}: invalid or empty direction {direction!r}")
                 text = row["forecast_text"].strip()
+                normalized = normalized_text(text)
+                family = row.get("family_id", "").strip()
+                for key, index in [(normalized, seen_content_split), (family, seen_family_split)]:
+                    if key and key in index and index[key] != split:
+                        raise ValueError(f"{record_id}: event family/content crosses temporal splits")
+                    if key:
+                        index[key] = split
                 causes = parse_array(row["causes_json"], "causes_json", record_id)
                 evidence = parse_array(row["evidence_json"], "evidence_json", record_id)
                 if not text or not evidence:
@@ -101,6 +115,9 @@ def main() -> None:
                     separators=(",", ":"),
                 )
                 sample = {
+                    "source_text": text,
+                    "record_id": record_id,
+                    "publication_date": row["publication_date"],
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_prompt(text)},

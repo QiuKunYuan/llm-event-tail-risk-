@@ -3,6 +3,7 @@
 *.zip
 data/raw/
 RESSET论文数据/
+docs/数据核查/字段验证截图/
 
 # 他人论文与参考文献（版权）
 *.pdf.zip
@@ -16,6 +17,13 @@ __pycache__/
 .venv/
 .ipynb_checkpoints/
 node_modules/
+*.safetensors
+*.pt
+*.pth
+*.csv
+*.csv.gz
+*.npz
+wandb/
 
 # 临时文件
 *.tmp

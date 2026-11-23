@@ -17,7 +17,7 @@ from pathlib import Path
 DEFAULT_DATA_ROOT = Path("/home/admin/workspace/RESSET论文数据")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ANNOTATION_FIELDS = [
-    "record_id", "stock_code", "publication_date", "report_date", "forecast_text",
+    "record_id", "family_id", "forecast_object", "stock_code", "publication_date", "report_date", "forecast_text",
     "proposed_split", "direction", "causes_json", "evidence_json",
     "annotator_confidence", "needs_adjudication", "annotator_note",
 ]
@@ -26,7 +26,7 @@ ANNOTATION_FIELDS = [
 def event_id(row: dict[str, str]) -> str:
     identity = "\x1f".join(
         row.get(field, "").strip()
-        for field in ("stock_code", "publication_date", "report_date", "forecast_type", "forecast_text")
+        for field in ("stock_code", "publication_date", "report_date", "forecast_object", "forecast_type", "forecast_text")
     )
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
 
@@ -151,9 +151,12 @@ def main() -> None:
                 "publication_date": publication_day.isoformat(),
                 "report_date": source_row.get("report_date", "").strip(),
                 "forecast_type": source_row.get("forecast_type", "").strip(),
+                "forecast_object": source_row.get("forecast_object", "").strip(),
                 "forecast_text": text,
             }
             row["record_id"] = event_id(row)
+            family = "\x1f".join(row[k] for k in ("stock_code", "report_date", "forecast_object"))
+            row["family_id"] = hashlib.sha256(family.encode()).hexdigest()[:20]
             if row["record_id"] in seen_ids:
                 exclusions["exact_duplicate_event"] += 1
                 continue
@@ -161,6 +164,12 @@ def main() -> None:
             row["proposed_split"] = proposed_split(row["publication_date"])
             rows.append(row)
 
+    family_splits: dict[str, set[str]] = {}
+    for row in rows:
+        family_splits.setdefault(row["family_id"], set()).add(row["proposed_split"])
+    conflicts = {f for f, splits in family_splits.items() if len(splits) > 1}
+    exclusions["cross_split_event_family"] = sum(row["family_id"] in conflicts for row in rows)
+    rows = [row for row in rows if row["family_id"] not in conflicts]
     if len(rows) < args.sample_size:
         raise ValueError(f"Only {len(rows)} eligible events; requested {args.sample_size}")
     sample = stratified_sample(rows, args.sample_size, args.seed)

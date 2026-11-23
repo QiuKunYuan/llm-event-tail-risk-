@@ -144,7 +144,7 @@ TABLES = (
     TableSpec(
         "shareholders",
         ("主要股东名单",),
-        ("company_code", "stock_code", "report_date", "publication_date", "holder_rank", "holder_id", "holder_name", "holder_attribute", "holder_nature", "holder_type", "total_shares", "float_shares", "holding_shares", "pct_total", "pct_float"),
+        ("company_code", "stock_code", "report_date", "publication_date", "holder_rank", "holder_id", "holder_name", "holder_attribute", "holder_nature", "holder_type", "total_shares", "float_shares", "holding_shares", "pct_total", "pct_float", "info_source", "holder_series", "update_date"),
         {
             "company_code": ("上市公司代码_ComCd", "上市公司代码_Comcd"),
             "stock_code": ("A股股票代码_A_StkCd", "股票代码_Stkcd"),
@@ -161,6 +161,9 @@ TABLES = (
             "holding_shares": ("持股数(股)_HoldSum",),
             "pct_total": ("持股数占总股本比例_PctTotShr",),
             "pct_float": ("持股数占流通股比例_PctTrdShr",),
+            "info_source": ("信息来源_InfoSource", "InfoSource"),
+            "holder_series": ("股东序号_SHSer", "SHSer"),
+            "update_date": ("更新日期_UpDt", "UpDt"),
         },
         ("report_date", "publication_date"),
         ("stock_code", "publication_date", "holder_name"),
