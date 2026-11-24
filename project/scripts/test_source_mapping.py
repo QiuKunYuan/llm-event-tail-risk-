@@ -67,6 +67,40 @@ class SourceMappingTests(unittest.TestCase):
         self.assertEqual(row["source_row"], "2")
         self.assertEqual(self.spec.output_fields[:7], ("company_code", "stock_code", "trading_stock_code", "date", "return", "capital_return", "risk_free_rate"))
 
+    def test_supplemental_shareholder_parenthesized_headers(self):
+        spec = next(s for s in prepare_resset.TABLES if s.key == "shareholders")
+        result = prepare_resset.resolve_columns({
+            0: "信息类别编码()_InfoTypeCd",
+            1: "原始披露股东名单标识()_OrgDisSHFlg",
+            2: "股东性质编码()_SHChrctCd",
+        }, spec)
+        self.assertEqual(result["info_type_code"], 0)
+        self.assertEqual(result["original_disclosure_flag"], 1)
+        self.assertEqual(result["holder_nature_code"], 2)
+
+    def test_supplemental_converter_does_not_invent_versions(self):
+        spec = next(s for s in prepare_resset.TABLES if s.key == "shareholders")
+        headers = ["上市公司代码_ComCd", "A股股票代码_A_StkCd",
+                   "信息发布日期_InfoPubDt", "股东名单_SHLst",
+                   "信息类别编码()_InfoTypeCd", "原始披露股东名单标识()_OrgDisSHFlg",
+                   "股东性质编码()_SHChrctCd"]
+        path = self.root / "synthetic-shareholders.xlsx"
+        write_workbook(path, {"data": [headers, ["111", "000001", "2018-02-12",
+                                                "虚构测试机构", "1.0", "1.0", "10.0"]]})
+        destination = io.StringIO()
+        with patch.object(prepare_resset, "ROOT", self.root):
+            prepare_resset.convert_workbook(path, self.root / "original.zip",
+                                           path.name, spec, csv.writer(destination), {})
+        values = next(csv.reader(io.StringIO(destination.getvalue())))
+        row = dict(zip(spec.output_fields, values))
+        self.assertEqual(row["stock_code"], "000001")
+        self.assertEqual(row["info_type_code"], "1.0")
+        self.assertEqual(row["original_disclosure_flag"], "1.0")
+        self.assertEqual(row["holder_nature_code"], "10.0")
+        self.assertEqual(row["update_date"], "")
+        self.assertEqual(row["disclosure_id"], "")
+        self.assertEqual(row["source_row"], "2")
+
     def test_panel_allows_only_named_namespace_change(self):
         old = self.panel("old.gz", [{"company_code": "999", "stock_code": "000001", "return": "0.01"}])
         new = self.panel("new.gz", [{"company_code": "111", "stock_code": "000001", "return": "0.01"}])
