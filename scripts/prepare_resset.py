@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import argparse
 import gzip
+import hashlib
 import html
 import json
 import re
@@ -50,9 +51,10 @@ TABLES = (
     TableSpec(
         "daily_returns",
         ("日收益(",),
-        ("company_code", "stock_code", "trading_stock_code", "date", "return", "capital_return", "risk_free_rate", "market_return_float", "market_return_total", "industry_sector", "industry_group"),
+        ("company_code", "stock_code", "trading_stock_code", "date", "return", "capital_return", "risk_free_rate", "market_return_float", "market_return_total", "industry_sector", "industry_group", "raw_company_code", "company_code_field", "source_archive", "source_workbook", "source_row"),
         {
-            "company_code": ("上市公司代码_Comcd", "上市公司代码_ComCd", "公司代码()_CompanyCode", "公司代码_CompanyCode"),
+            "company_code": ("上市公司代码_Comcd", "上市公司代码_ComCd"),
+            "raw_company_code": ("公司代码()_CompanyCode", "公司代码_CompanyCode"),
             "stock_code": ("股票代码_Stkcd",),
             "trading_stock_code": ("交易时股票代码_Stkcdotrd",),
             "date": ("日期_Date",),
@@ -144,7 +146,7 @@ TABLES = (
     TableSpec(
         "shareholders",
         ("主要股东名单",),
-        ("company_code", "stock_code", "report_date", "publication_date", "holder_rank", "holder_id", "holder_name", "holder_attribute", "holder_nature", "holder_type", "total_shares", "float_shares", "holding_shares", "pct_total", "pct_float", "info_source", "holder_series", "update_date"),
+        ("company_code", "stock_code", "report_date", "publication_date", "holder_rank", "holder_id", "holder_name", "holder_attribute", "holder_nature", "holder_type", "total_shares", "float_shares", "holding_shares", "pct_total", "pct_float", "info_source", "holder_series", "update_date", "holder_type_code", "holder_nature_code", "info_type_code", "original_disclosure_flag", "holder_series_by_type", "affiliated_security_code", "disclosure_id", "company_code_field", "source_archive", "source_workbook", "source_row"),
         {
             "company_code": ("上市公司代码_ComCd", "上市公司代码_Comcd"),
             "stock_code": ("A股股票代码_A_StkCd", "股票代码_Stkcd"),
@@ -164,6 +166,13 @@ TABLES = (
             "info_source": ("信息来源_InfoSource", "InfoSource"),
             "holder_series": ("股东序号()_SHSer", "股东序号_SHSer", "SHSer"),
             "update_date": ("更新时间_UpDt", "更新日期_UpDt", "UpDt"),
+            "holder_type_code": ("股东类别编码_SHTypeCd", "SHTypeCd"),
+            "holder_nature_code": ("股东性质编码_SHChrctCd", "SHChrctCd"),
+            "info_type_code": ("信息类别编码_InfoTypeCd", "InfoTypeCd"),
+            "original_disclosure_flag": ("原始披露股东名单标识_OrgDisSHFlg", "OrgDisSHFlg"),
+            "holder_series_by_type": ("股东序号_按类别_ShrSer_Type", "ShrSer_Type"),
+            "affiliated_security_code": ("所属基金/股票的代码_SecuCd", "SecuCd"),
+            "disclosure_id": ("ID",),
         },
         ("report_date", "publication_date"),
         ("stock_code", "publication_date", "holder_name"),
@@ -286,6 +295,22 @@ def matching_archive(path: Path, spec: TableSpec) -> bool:
     return all(token in name for token in spec.archive_tokens)
 
 
+def resolve_columns(headers: dict[int, str], spec: TableSpec) -> dict[str, int]:
+    """Honor explicit alias priority, never worksheet order or namespace fallback."""
+    resolved = {}
+    for field, candidates in spec.source_aliases.items():
+        for alias in candidates:
+            matches = [col for col, name in headers.items() if name.casefold() == alias.casefold()]
+            if len(matches) > 1:
+                raise ValueError(f"Ambiguous duplicate header for {field}: {alias}")
+            if matches:
+                resolved[field] = matches[0]
+                break
+    if len(set(resolved.values())) != len(resolved):
+        raise ValueError("Different output fields resolve to the same source column")
+    return resolved
+
+
 def convert_workbook(
     workbook_path: Path,
     archive_path: Path,
@@ -304,14 +329,7 @@ def convert_workbook(
                 raise ValueError("worksheet header row not found in first 256 KiB")
             header_cells = row_cells(header_match.group(1), set(range(512)), shared_strings)
             header_by_column = {column: value.strip() for column, value in header_cells.items()}
-            aliases = {name: {alias.casefold() for alias in candidates} for name, candidates in spec.source_aliases.items()}
-            source_column: dict[int, str] = {}
-            resolved: dict[str, int] = {}
-            for column, header in header_by_column.items():
-                for output_name, options in aliases.items():
-                    if header.casefold() in options and output_name not in resolved:
-                        resolved[output_name] = column
-                        source_column[column] = output_name
+            resolved = resolve_columns(header_by_column, spec)
             missing_required = [name for name in spec.require if name not in resolved]
             if missing_required:
                 raise ValueError(f"required columns not found: {missing_required}; headers={list(header_by_column.values())}")
@@ -320,17 +338,28 @@ def convert_workbook(
             stats.setdefault("sources", []).append({
                 "archive": str(archive_path.relative_to(ROOT)),
                 "workbook": member_name,
-                "unmatched_optional_fields": [name for name in spec.output_fields if name not in resolved],
+                "resolved_source_headers": {name: header_by_column[col] for name, col in resolved.items()},
+                "unmatched_optional_fields": [name for name in spec.source_aliases if name not in resolved],
             })
             rows = 0
             missing_counts = stats.setdefault("missing_counts", {field: 0 for field in spec.output_fields})
             dates = stats.setdefault("date_ranges", {field: {"min": None, "max": None} for field in spec.date_fields})
-            wanted_columns = set(source_column)
+            wanted_columns = set(resolved.values())
 
             # The header has already been consumed. RESSET sheets use one XML row per record.
             for body in iter_row_bodies(stream, initial[header_match.end():]):
                 data = row_cells(body, wanted_columns, shared_strings)
                 record = {field: data.get(resolved[field], "") if field in resolved else "" for field in spec.output_fields}
+                if "source_archive" in record:
+                    ref = re.search(rb'\br="[A-Z]+(\d+)"', body)
+                    if ref is None:
+                        raise ValueError("Source row has no worksheet cell reference")
+                    record.update({
+                        "source_archive": str(archive_path.relative_to(ROOT)),
+                        "source_workbook": member_name,
+                        "source_row": ref.group(1).decode("ascii"),
+                        "company_code_field": header_by_column[resolved["company_code"]] if "company_code" in resolved else "",
+                    })
                 for field in spec.output_fields:
                     value = record.get(field, "")
                     if not value:
@@ -356,18 +385,31 @@ def main() -> None:
     global ROOT, OUT
     ROOT = Path(args.root).resolve()
     OUT = Path(args.output).resolve() if args.output else ROOT / "processed"
-    OUT.mkdir(parents=True, exist_ok=True)
+    repo = Path(__file__).resolve().parents[1]
+    if OUT == repo or repo in OUT.parents:
+        raise ValueError("Licensed records must be written outside the Git repository")
+    OUT.mkdir(parents=True, exist_ok=False)
     report: dict[str, object] = {"source_root": str(ROOT), "tables": {}, "skipped": ["monthly momentum is not used", "turnover export has no turnover value column"]}
     report_path = OUT / "preparation_report.json"
-    if args.only and report_path.exists():
-        report = json.loads(report_path.read_text(encoding="utf-8"))
 
     archives = sorted(ROOT.rglob("*.zip"))
     selected_tables = {name.strip() for name in args.only.split(",")} if args.only else None
+    if selected_tables is not None and not selected_tables <= {s.key for s in TABLES}:
+        raise ValueError("Unknown table requested")
+    inputs = [p for p in archives if any(matching_archive(p, s) for s in TABLES if selected_tables is None or s.key in selected_tables)]
+    inputs += [Path(__file__), Path(__file__).with_name("resset_xlsx_audit.py")]
+    def digest(path):
+        with path.open("rb") as stream:
+            return hashlib.file_digest(stream, "sha256").hexdigest()
+    before = {str(p): digest(p) for p in inputs}
+    report["input_and_code_sha256"] = before
+    report["company_code_namespace"] = "Comcd only; CompanyCode retained separately, no implicit fallback"
     for spec in TABLES:
         if selected_tables is not None and spec.key not in selected_tables:
             continue
         selected_archives = [path for path in archives if matching_archive(path, spec)]
+        if not selected_archives:
+            raise FileNotFoundError(f"No source archive for {spec.key}")
         table_stats: dict[str, object] = {"rows_written": 0, "input_files": 0, "sources": [], "rows_by_workbook": [], "errors": []}
         output_path = OUT / f"{spec.key}.csv.gz"
         with gzip.open(output_path, "wt", encoding="utf-8", newline="", compresslevel=4) as output:
@@ -389,8 +431,16 @@ def main() -> None:
                 except Exception as exc:
                     table_stats["errors"].append({"archive": str(archive_path), "error": str(exc)})
         table_stats["output"] = str(output_path)
+        table_stats["output_sha256"] = digest(output_path)
         report["tables"][spec.key] = table_stats
+        if table_stats["errors"] or not table_stats["rows_written"]:
+            report["passed"] = False
+            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+            raise RuntimeError(f"Incomplete source conversion: {spec.key}; see private report")
 
+    if before != {str(p): digest(p) for p in inputs}:
+        raise RuntimeError("Input or code changed during conversion")
+    report["passed"] = True
     report["source_root"] = str(ROOT)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(report_path)
