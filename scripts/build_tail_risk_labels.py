@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import json
 import os
 import subprocess
@@ -48,12 +49,20 @@ def main() -> None:
     returns = processed / "daily_returns.csv.gz"
     factors = processed / "daily_factors.csv.gz"
     output = args.output or processed / "tail_risk_labels.csv.gz"
+    report_path = output.with_name("tail_risk_labels_report.json")
+    if output.exists() or report_path.exists():
+        raise FileExistsError("Use a new output directory; existing label evidence is never overwritten")
     cpp = Path(__file__).with_name("build_tail_risk_labels.cpp")
     for path in (returns, factors, cpp):
         if not path.exists():
             raise FileNotFoundError(path)
     output.parent.mkdir(parents=True, exist_ok=True)
     scratch_parent = Path(os.environ.get("TMPDIR", "/tmp"))
+    def digest(path: Path) -> str:
+        with path.open("rb") as source:
+            return hashlib.file_digest(source, "sha256").hexdigest()
+    inputs = [returns, factors, processed / "preparation_report.json", cpp, Path(__file__)]
+    before_hashes = {str(p): digest(p) for p in inputs}
 
     with tempfile.TemporaryDirectory(prefix="tailrisk-", dir=scratch_parent) as scratch_name:
         scratch = Path(scratch_name)
@@ -155,8 +164,12 @@ def main() -> None:
                 min_stock = s if min_stock is None else min(min_stock, s)
                 max_stock = s if max_stock is None else max(max_stock, s)
 
+    if before_hashes != {str(p): digest(p) for p in inputs}:
+        raise RuntimeError("Input or generator changed during label rebuilding")
     report = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
+        "input_and_code_sha256": before_hashes,
+        "output_sha256": digest(output),
         "input_returns": str(returns),
         "input_factors": str(factors),
         "output": str(output),
@@ -182,16 +195,16 @@ def main() -> None:
         "factor_regression": {
             "dependent_variable": "individual daily return minus daily risk-free rate",
             "regressors": ["intercept", "Rmrf_float", "Smb_float", "Hml_float"],
-            "window": "last 252 non-missing stock return observations through prediction date",
+            "window": "last 252 observations with finite stock return, risk-free rate and all three factors through prediction date",
             "minimum_observations": WINDOW,
         },
         "label": {
             "horizon": "next 5 market trading days",
             "outcome": "sum of frozen-beta daily factor residuals",
             "history": "252 most recent valid prior outcomes completed by the prediction date",
-            "quantile": "nearest rank; strict less-than threshold",
+            "quantile": "fixed 252 outcomes: order statistics 26 (P10) and 13 (P05); strict less-than threshold",
             "p10_and_p05": "p05 included for robustness",
-            "purge": "at least 5 market trading days at evaluation boundaries",
+            "purge": "outcome_end must be strictly before the next split start",
         },
         "selected_factor_rows": selected_count,
         "input_rows": process_stats["rows"],
@@ -207,7 +220,6 @@ def main() -> None:
         "sorted_unique_by_stock_date": True,
         "input_rows_missing_return_excluded_from_estimation_and_horizon": True,
     }
-    report_path = output.with_name("tail_risk_labels_report.json")
     temp_report = report_path.with_suffix(".json.tmp")
     temp_report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temp_report.replace(report_path)
