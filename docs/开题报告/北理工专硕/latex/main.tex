@@ -1,0 +1,79 @@
+% Revised proposal built on the user's BIThesis 3.7.4 class, not the old thesis text.
+% Compile with XeLaTeX, without shell escape. Generated bibliography uses the
+% project's independently maintained 34-reference review rather than the old .bib.
+\documentclass[type=master,twoside=false,ctex={fontset=fandol}]{bithesis}
+\BITSetup{
+ info={title={披露时点感知的A股短期尾部风险预测},author={邱琨原},studentId={待填写},
+ school={待填写},major={待填写},supervisor={待填写},degree={专业学位硕士},
+ classification={待确认},UDC={待确认},defenseDate={待填写},
+ keywords={尾部风险,公开时点,公告抽取,机构持股,残差融合}},
+ style={head={北京理工大学专业学位硕士开题报告},betterTimesNewRoman=true,
+ pageVerticalAlign=top},misc={tabularFontSize=5}}
+\IfFontExistsTF{Noto Serif CJK SC}{
+ \setCJKmainfont{Noto Serif CJK SC}
+ \setCJKsansfont{Noto Sans CJK SC}
+ \setCJKmonofont{Noto Sans Mono CJK SC}
+ \setCJKfamilyfont{zhsong}{Noto Serif CJK SC}
+ \setCJKfamilyfont{zhhei}{Noto Sans CJK SC}
+ \setCJKfamilyfont{zhkai}{Noto Serif CJK SC}
+ \setCJKfamilyfont{zhfs}{Noto Serif CJK SC}
+}{}
+\usepackage{longtable,tabularx,makecell,float,placeins}
+\usepackage{pgfplots,pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,patterns,matrix}
+\input{figures/figures.tex}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\method}{披露年龄约束的有界残差融合}
+\newcommand{\source}[1]{\par\smallskip{\small\sffamily\color{inkgray}来源与口径：#1}\par}
+\newcommand{\reporttable}[3]{\begin{table}[tbp]\centering\caption{#1}\label{#2}\small #3\end{table}}
+\newcommand{\reportfigure}[4]{\begin{figure}[tbp]\centering #3\caption{#1}\label{#2}\source{#4}\end{figure}}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{5.5pt}
+\setlength{\textfloatsep}{16pt plus 2pt minus 2pt}
+\setlength{\intextsep}{14pt plus 2pt minus 2pt}
+\captionsetup{font=small,labelfont=bf}
+\AtBeginDocument{\renewcommand{\normalsize}{\fontsize{12bp}{22bp}\selectfont}\setstretch{1}\normalsize}
+\hypersetup{pdftitle={披露时点感知的A股短期尾部风险预测——专业学位硕士开题报告},
+ pdfauthor={邱琨原},pdfsubject={两年制专业学位硕士；研究设计与已核数据分析},hidelinks}
+\begin{document}
+\begin{titlepage}
+ \centering
+ \vspace*{10mm}
+ {\heiti\zihao{1}北京理工大学\par}
+ \vspace{18mm}
+ {\heiti\zihao{0}专业学位硕士\par}
+ \vspace{6mm}
+ {\heiti\zihao{0}学位论文开题报告\par}
+ \vspace{23mm}
+ {\heiti\zihao{2}披露时点感知的A股\par 短期尾部风险预测\par}
+ \vspace{20mm}
+ {\zihao{3}\renewcommand{\arraystretch}{1.65}
+ \begin{tabular}{rl}
+ 姓名：&邱琨原\\ 学制：&2年\\ 学号：&待填写\\
+ 类别、领域：&待填写\\ 培养单位：&待填写\\
+ 校内导师：&待填写\\ 拟申请学位方式：&学位论文\\
+ 正式开题日期：&待填写
+ \end{tabular}\par}
+ \vfill
+ {\zihao{4}材料编制：2026年11月25日\par}
+\end{titlepage}
+\frontmatter
+\tableofcontents
+\clearpage
+\mainmatter
+\fontsize{12bp}{22bp}\selectfont
+\input{sections/01_basis.tex}\FloatBarrier
+\input{sections/02_contents.tex}\FloatBarrier
+\input{sections/03_methods.tex}\FloatBarrier
+\input{sections/04_schedule.tex}\FloatBarrier
+\input{sections/05_outputs.tex}\FloatBarrier
+\input{sections/06_innovation.tex}\FloatBarrier
+\input{sections/07_foundation.tex}\FloatBarrier
+\clearpage
+\edef\ReportBodyPages{\number\numexpr\value{page}-1\relax}
+\typeout{REPORT_BODY_PAGES=\ReportBodyPages}
+\backmatter
+\input{references.bbl}
+\end{document}

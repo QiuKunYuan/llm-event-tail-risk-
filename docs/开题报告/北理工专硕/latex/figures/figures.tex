@@ -1,0 +1,247 @@
+% Original vector diagrams. No figure is copied from the user's old thesis.
+\definecolor{seriesblue}{HTML}{2A78D6}
+\definecolor{seriesorange}{HTML}{EB6834}
+\definecolor{seriesgreen}{HTML}{1BAF7A}
+\definecolor{inkgray}{HTML}{52514E}
+\definecolor{rulegray}{HTML}{D8D8D8}
+\tikzset{box/.style={draw=rulegray,rounded corners=2pt,fill=white,text=black,
+ text width=3.05cm,minimum height=1.12cm,align=center,font=\sffamily\small,inner sep=6pt},
+ tinybox/.style={box,text width=2.25cm},
+ sb/.style={box,fill=seriesblue!8,draw=seriesblue},
+ eb/.style={box,fill=seriesorange!8,draw=seriesorange},
+ gb/.style={box,fill=seriesgreen!8,draw=seriesgreen},
+ arr/.style={-{Stealth[length=2mm]},draw=inkgray,line width=.8pt},
+ hint/.style={font=\sffamily\small,text=black,align=center}}
+\pgfplotsset{reportaxis/.style={width=.94\linewidth,height=6cm,
+ font=\sffamily\small,tick label style={font=\sffamily\footnotesize},
+ label style={font=\sffamily\small},grid=major,grid style={rulegray,thin},
+ axis line style={inkgray,thin},tick style={inkgray},scaled ticks=false,
+ legend style={draw=none,font=\sffamily\small},
+ every axis plot/.append style={line width=1.2pt}}}
+
+\newcommand{\FigAsync}{
+\begin{tikzpicture}[x=1.55cm,y=1.2cm]
+ \foreach \i in {0,...,6}{\draw[rulegray] (\i,.2)--(\i,3.25);\node[hint]at(\i,0){$t_{\i}$};}
+ \node[hint,anchor=east]at(-.25,2.8){S 收益};
+ \node[hint,anchor=east]at(-.25,1.7){E 公告};
+ \node[hint,anchor=east]at(-.25,.6){G 持股};
+ \foreach \i in {0,...,6}{\fill[seriesblue](\i,2.8)circle(2.5pt);}
+ \fill[seriesorange](1,1.7)circle(3pt);\fill[seriesorange](4,1.7)circle(3pt);
+ \draw[arr](1,1.7)--(2,1.7);\draw[arr](4,1.7)--(5,1.7);
+ \fill[seriesgreen](3,.6)circle(3pt);\draw[arr](3,.6)--(4,.6);
+ \node[hint,above]at(1,1.7){公开};\node[hint,above]at(4,1.7){新公告};
+ \node[hint,below]at(3,.6){名单公开};
+ \node[hint,text width=12.5cm]at(3,-.55){符号时间线：点为更新，箭头为下一市场日可用；不是观测频率统计};
+\end{tikzpicture}}
+
+\newcommand{\FigAvailability}{
+\begin{tikzpicture}[node distance=9mm and 10mm]
+ \node[tinybox](r){报告期 $R$\\资料描述的期间};
+ \node[tinybox,right=of r](p){公开日 $P$\\社会可获取时点};
+ \node[tinybox,right=of p](v){生效日 $v$\\$P$ 后首个市场日};
+ \node[tinybox,right=of v](t){预测日 $t$\\只查询 $v\le t$};
+ \draw[arr](r)--(p);\draw[arr](p)--(v);\draw[arr](v)--(t);
+ \node[box,below=12mm of p,text width=8cm](version){更正版本按更正公开日追加\\原版内容与更正后内容保留不同版本键};
+ \draw[arr](p)--(version);\draw[arr](version.east)-|(t.south);
+\end{tikzpicture}}
+
+\newcommand{\FigArchitecture}{
+\begin{tikzpicture}[node distance=7mm and 9mm]
+ \node[sb](s0){S：60市场日收益\\三因子与缺失掩码};
+ \node[sb,right=of s0](s1){GRU64\\投影 $s_i\in\mathbb R^{128}$};
+ \node[box,right=of s1](s2){主干分数 $z_s$\\共同诉讼结构控制};
+ \node[eb,below=of s0](e0){E：已生效业绩预告\\原生数值另行保留};
+ \node[eb,right=of e0](e1){Qwen抽取与正文缓存\\风险训练学习投影};
+ \node[eb,right=of e1](e2){事件表示 $e_i$\\有界修正 $a_e\delta_e$};
+ \node[gb,below=of e0](g0){G：原版完整持股组\\主体与证券映射};
+ \node[gb,right=of g0](g1){比例、边龄加权\\机构均值去目标自身};
+ \node[gb,right=of g1](g2){关系表示 $g_i$\\有界修正 $a_g\delta_g$};
+ \foreach \a/\b in {s0/s1,s1/s2,e0/e1,e1/e2,g0/g1,g1/g2}{\draw[arr](\a)--(\b);}
+ \node[box,below=10mm of g1,text width=10cm](out){$z_i=z_{s,i}+a_{e,i}\delta_{e,i}+a_{g,i}\delta_{g,i}$\\公司日风险排序、分支修正与来源版本};
+ \draw[arr](s2.east)--++(.3,0)|-(out.east);
+ \draw[arr](e2.east)--++(.15,0)|-(out.east);
+ \draw[arr](g2.south)|-(out.east);
+ \node[hint,below=5mm of out]{S蓝：收益；E橙：业绩预告；G绿：持股关系。颜色仅区分支路。};
+\end{tikzpicture}}
+
+\newcommand{\FigProducts}{
+\begin{tikzpicture}[node distance=9mm and 9mm]
+ \node[box](index){共享公司日索引\\证券、日期、结果结束日};
+ \node[sb,below left=of index](raw){原始序列索引\\市场日与有效掩码};
+ \node[eb,below=of index](events){共享事件表\\原文哈希、可用日、缓存键};
+ \node[gb,below right=of index](edges){完整名单版本流\\公司、主体、边权、公开日};
+ \node[box,below=16mm of events,text width=9cm](batch){按日期查询的日批次装配器\\目标与邻居去重，特征与监督分别返回};
+ \draw[arr](index)--(raw);\draw[arr](index)--(events);\draw[arr](index)--(edges);
+ \draw[arr](raw.south)|-(batch.west);\draw[arr](events)--(batch);\draw[arr](edges.south)|-(batch.east);
+\end{tikzpicture}}
+
+\newcommand{\FigLabel}{
+\begin{tikzpicture}[node distance=10mm and 10mm]
+ \node[box](history){过去252个有效观测\\在 $t$ 估计 $\hat\alpha_{i,t},\hat\beta_{i,t}$};
+ \node[box,right=of history](frozen){冻结起点系数\\只用于定义该起点结果};
+ \node[box,right=of frozen](future){未来5个市场日\\累计残差 $C_{i,t}^{(5)}$};
+ \node[box,below=of frozen](ended){截至 $t$ 已结束的252窗口\\各窗口冻结自身起点系数};
+ \node[box,below=of future](threshold){第26项 $q_{.10,i,t}$\\第13项 $q_{.05,i,t}$};
+ \node[box,below=of threshold](target){$Y_{i,t}=\mathbf1\{C_{i,t}^{(5)}<q_{.10,i,t}\}$\\任一未来必需观测缺失则无标签};
+ \draw[arr](history)--(frozen);\draw[arr](frozen)--(future);
+ \draw[arr](ended)--(threshold);\draw[arr](future)--(target);\draw[arr](threshold)--(target);
+ \node[hint,below=of history,text width=3.4cm]{未来结果仅离线进入监督\\不送回当天特征查询};
+\end{tikzpicture}}
+
+\newcommand{\FigNamespace}{
+\begin{tikzpicture}[node distance=9mm and 12mm]
+ \node[box](cc){CompanyCode\\原公司编码命名空间};
+ \node[box,right=of cc](lc){ComCd\\上市公司编码命名空间};
+ \node[box,right=of lc](stock){A股证券代码\\须核历史有效区间};
+ \node[box,below=of lc,text width=5cm](bridge){跨表观察映射与来源凭证\\不能由观察起止推断上市/退市};
+ \node[box,below=of cc](holder){GDID：股东/产品标识\\不是被预测证券编码};
+ \node[box,below=of stock](fund){SecuCd：股东所属证券\\不是被持股公司的A股码};
+ \draw[arr](cc)--node[above,hint]{独立保留}(lc);
+ \draw[arr](lc)--node[above,hint]{按日期核准}(stock);
+ \draw[arr](cc.south)|-(bridge.west);\draw[arr](stock.south)|-(bridge.east);
+\end{tikzpicture}}
+
+\newcommand{\FigAnnotation}{
+\begin{tikzpicture}[node distance=8mm and 12mm]
+ \node[box](sample){按时间、家族隔离1500\\训练800 / 验证200 / 测试500};
+ \node[box,below left=of sample](a){A：先独立200\\训练子集};
+ \node[box,below right=of sample](b){B：独立42\\来自既定双标交集};
+ \node[box,below=20mm of sample](freeze){独立原稿比较、讨论\\只用训练试标冻结规范};
+ \node[box,below left=of freeze](resta){A：余1300\\不重新抽样};
+ \node[box,below right=of freeze](restb){B：余258\\合计双标300};
+ \node[box,below=20mm of freeze,text width=8cm](gold){裁决绑定原稿哈希、明确人工放行\\训练SFT与独立测试分别导出};
+ \draw[arr](sample)--(a);\draw[arr](sample)--(b);\draw[arr](a.south)|-(freeze.west);\draw[arr](b.south)|-(freeze.east);
+ \draw[arr](freeze)--(resta);\draw[arr](freeze)--(restb);\draw[arr](resta.south)|-(gold.west);\draw[arr](restb.south)|-(gold.east);
+\end{tikzpicture}}
+
+\newcommand{\FigPooling}{
+\begin{tikzpicture}[node distance=7mm and 5mm]
+ \node[tinybox](system){系统与任务提示\\排除};
+ \node[tinybox,right=of system](wrap){公司包装与标记\\排除};
+ \node[sb,right=of wrap](body){公告正文token\\按正文位置掩码求均值};
+ \node[tinybox,right=of body](answer){答案JSON/padding\\排除};
+ \node[box,below=12mm of body,text width=8cm](vector){冻结正文向量 $v_e\in\mathbb R^D$\\风险训练学习 $W_ev_e$，与预测三字段共同形成事件表示};
+ \draw[arr](body)--(vector);
+\end{tikzpicture}}
+
+\newcommand{\FigCache}{
+\begin{tikzpicture}[node distance=8mm and 10mm]
+ \node[box](text){原文哈希\\事件家族、可用日期};
+ \node[box,right=of text](model){基座revision、adapter\\tokenizer与模板版本};
+ \node[box,right=of model](policy){正文位置、长度策略\\字段schema与解析版本};
+ \node[box,below=12mm of model,text width=8cm](key){组合缓存键 $K_e$\\向量、预测字段、追溯状态、失败原因};
+ \node[box,below=of key,text width=8cm](query){日查询只取已生效版本\\任一组成改变则旧缓存不得混用};
+ \draw[arr](text.south)|-(key.west);\draw[arr](model)--(key);\draw[arr](policy.south)|-(key.east);\draw[arr](key)--(query);
+\end{tikzpicture}}
+
+\newcommand{\FigCertification}{
+\begin{tikzpicture}[node distance=8mm and 10mm]
+ \node[box](a){InfoType=1、原始标识=1\\先分离其他名单口径};
+ \node[box,right=of a](b){完整性与并列排名\\原报告与更正比对};
+ \node[box,right=of b](c){主体、证券与日期\\产品/管理人/托管分辨};
+ \node[gb,below=of c](d){接受的完整版本\\总股本统一比例入边};
+ \node[box,below=of a](u){未决、冲突或补充记录\\保留来源、隔离待核};
+ \draw[arr](a)--(b);\draw[arr](b)--(c);\draw[arr](c)--(d);
+ \draw[arr](b.south)|-(u.east);\draw[arr](a)--(u);
+ \node[hint,below=8mm of d,text width=10cm]{辅助记录未接受不等于删除目标公司日；\ $M_g=0$ 表达关系不可用。};
+\end{tikzpicture}}
+
+\newcommand{\FigBipartite}{
+\begin{tikzpicture}[node distance=10mm and 18mm]
+ \node[box](i){公司 $i$：目标\\当前表示 $s_i$};
+ \node[box,below=of i](k){公司 $k$：共享邻居\\当前表示 $s_k$};
+ \node[box,below=of k](l){公司 $\ell$：共享邻居\\当前表示 $s_\ell$};
+ \node[box,right=of k](j){机构 $j$\\总和 $S_j=\sum_k w_{kj}\phi(s_k)$};
+ \node[gb,right=of j,text width=4.3cm](u){送回 $i$ 的消息\\$\displaystyle u_{j\setminus i}=\frac{S_j-w_{ij}\phi(s_i)}{d_j-w_{ij}}$\\分母为0时不可用};
+ \draw[arr](i.east)-|(j.north);\draw[arr](k)--(j);\draw[arr](l.east)-|(j.south);\draw[arr](j)--(u);
+\end{tikzpicture}}
+
+\newcommand{\FigEnvelope}{
+\begin{tikzpicture}
+\begin{axis}[reportaxis,height=7cm,xmin=0,xmax=2,ymin=-1.08,ymax=1.08,
+ xlabel={归一化披露年龄 $A$},ylabel={辅助logit修正允许范围},
+ xtick={0,.5,1,1.5,2},ytick={-1,-.5,0,.5,1},legend pos=north east]
+ \addplot[name path=upper,seriesblue,domain=0:2,samples=100]{exp(-x)};
+ \addlegendentry{上界 $+e^{-A}$}
+ \addplot[name path=lower,seriesblue,dashed,domain=0:2,samples=100]{-exp(-x)};
+ \addlegendentry{下界 $-e^{-A}$}
+ \addplot[seriesblue!10,draw=none,forget plot]fill between[of=upper and lower];
+ \addplot[inkgray,domain=0:2,forget plot]{0};
+\end{axis}
+\end{tikzpicture}}
+
+\newcommand{\FigTraining}{
+\begin{tikzpicture}[node distance=8mm and 10mm]
+ \node[box](read){当前日期 $t$ 的目标与邻居\\去重查询原始序列};
+ \node[box,right=of read](encode){当前GRU参数编码\\共享公司只计算一次};
+ \node[box,right=of encode](message){冻结事件缓存投影\\稀疏二部去自身消息};
+ \node[box,below=of message](fusion){$M,Q,A$ 与有界修正\\目标公司风险logit};
+ \node[box,left=of fusion](loss){仅当前训练目标监督\\主BCE及有效分支BCE};
+ \node[box,left=of loss](update){反向传播与参数更新\\原始输入缓存不随权重失效};
+ \draw[arr](read)--(encode);\draw[arr](encode)--(message);\draw[arr](message)--(fusion);\draw[arr](fusion)--(loss);\draw[arr](loss)--(update);
+ \draw[arr](update.north)|-(encode.south);
+\end{tikzpicture}}
+
+\newcommand{\FigFolds}{
+\begin{tikzpicture}[x=1.45cm,y=1.08cm,font=\sffamily\small]
+ \foreach \yr [count=\c from 0] in {2017,2018,2019,2020,2021,2022,2023,2024}{\node at(\c+.5,4.3){\yr};}
+ \foreach \r in {0,1,2,3}{
+   \pgfmathtruncatemacro{\endtrain}{2+\r}
+   \foreach \c in {0,...,\endtrain}{\fill[black!7](\c,3-\r)rectangle(\c+.95,3.8-\r);}
+   \pgfmathsetmacro{\val}{3+\r}\pgfmathsetmacro{\test}{4+\r}
+   \fill[black!19](\val,3-\r)rectangle(\val+.95,3.8-\r);
+   \draw[inkgray,thick](\test,3-\r)rectangle(\test+.95,3.8-\r);
+   \node at(\val+.47,3.4-\r){验证};\node at(\test+.47,3.4-\r){测试};
+   \node at(1.1,3.4-\r){训练};
+ }
+ \node[align=left,anchor=north west,text width=13cm]at(0,-.4){灰浅：训练；灰深：验证；边框：测试。\\按年格示意，2024测试仅至7月24日；实际边界另按结果结束日purge。};
+\end{tikzpicture}}
+
+\newcommand{\FigEvaluation}{
+\begin{tikzpicture}[node distance=9mm and 10mm]
+ \node[box](rows){同一测试公司日索引\\模型与主对照逐行配对};
+ \node[box,right=of rows](seed){各折、各种子AP\\先算指标，再取种子均值};
+ \node[box,right=of seed](equal){四折等权 $\Delta AP$\\与年度结果并列报告};
+ \node[box,below=of seed](blocks){折内抽整市场日期块\\同日公司与两模型一起抽};
+ \node[box,below=of equal](ci){20日块配对区间\\5/60日敏感性，1000次};
+ \draw[arr](rows)--(seed);\draw[arr](seed)--(equal);\draw[arr](rows.south)|-(blocks.west);\draw[arr](blocks)--(ci);\draw[arr](equal)--(ci);
+\end{tikzpicture}}
+
+\newcommand{\FigDependencies}{
+\begin{tikzpicture}[node distance=10mm and 10mm]
+ \node[box](base){收益、标签与公共索引\\现有数据底座};
+ \node[box,below left=of base](human){公告人工金标\\独立双标与裁决};
+ \node[box,below right=of base](graph){原版名单、主体、版本\\历史证券对应};
+ \node[box,below=18mm of base](cpu){真实取窗、事件版本流、日装配\\CPU隔离测试与对照/调度接口};
+ \node[box,below=of cpu](gpu){GPU实测、抽取与冻结缓存\\正式主比较、消融与统计};
+ \draw[arr](base)--(human);\draw[arr](base)--(graph);\draw[arr](human.south)|-(cpu.west);\draw[arr](graph.south)|-(cpu.east);\draw[arr](cpu)--(gpu);
+\end{tikzpicture}}
+
+\newcommand{\FigOutput}{
+\begin{tikzpicture}[node distance=9mm and 12mm]
+ \node[box](input){单日有效信息\\共享索引与来源版本};
+ \node[box,right=of input](model){冻结风险模型版本\\当前公司风险分数};
+ \node[box,right=of model](rank){每日前10\%排序\\用于人工风险筛查研究};
+ \node[box,below=of model,text width=9cm](audit){同模型主干 $z_s$、事件修正、关系修正、可用性与年龄\\原文/名单版本、模型哈希、查询日期与异常状态};
+ \draw[arr](input)--(model);\draw[arr](model)--(rank);\draw[arr](model)--(audit);
+\end{tikzpicture}}
+
+\newcommand{\FigYearCounts}{
+\begin{tikzpicture}\begin{axis}[reportaxis,ybar,bar width=7pt,
+ xlabel={源记录公开年份},ylabel={股东记录数（万条）},ymin=0,ymax=48,
+ symbolic x coords={2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026},
+ xtick=data,x tick label style={rotate=45,anchor=east,font=\sffamily\footnotesize},
+ ytick={0,10,20,30,40},enlarge x limits=.06]
+ \addplot[fill=seriesblue,draw=none]table[x=year,y=wan,col sep=space]{data/yearly.dat};
+ \node[font=\sffamily\footnotesize,anchor=south]at(axis cs:2023,43.1){430,988};
+ \node[font=\sffamily\footnotesize,anchor=south]at(axis cs:2026,.04){340};
+\end{axis}\end{tikzpicture}}
+
+\newcommand{\FigMissing}{
+\begin{tikzpicture}\begin{axis}[reportaxis,xbar,bar width=9pt,
+ xmin=0,xmax=66,xlabel={占全量新股东记录的比例（\%）},
+ symbolic y coords={信息来源,A股代码,股东ID,流通股比例},ytick=data,
+ yticklabel style={font=\sffamily\small},xtick={0,20,40,60},enlarge y limits=.25,
+ nodes near coords,point meta=explicit symbolic,every node near coord/.append style={font=\sffamily\footnotesize,text=black,anchor=west}]
+ \addplot[fill=seriesblue,draw=none]table[x=pct,y=field,meta=label,col sep=space]{data/missing.dat};
+\end{axis}\end{tikzpicture}}
