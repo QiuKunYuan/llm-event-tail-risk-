@@ -18,7 +18,7 @@ from docx.table import Table, _Cell
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs/开题报告/北理工专硕"
-TITLE = "披露时点感知的A股短期尾部风险预测"
+TITLE = "基于多维时序数据融合的短期证券市场风险预测"
 HEADINGS = ["一 选题依据", "二 研究内容", "三 研究方案", "四 研究工作进度安排",
             "五 预期研究成果", "六 本课题创新之处", "七 研究基础"]
 COVER = {"学号": "待填写", "姓名": "邱琨原", "导师": "待填写",
@@ -213,54 +213,6 @@ def save_draft(document, output):
     document.save(output)
 
 
-def proposal(template, output):
-    document = Document(template)
-    fields = fill_cover(document, TITLE)
-    text = (SOURCE / "开题报告-邱琨原.md").read_text(encoding="utf-8")
-    chunks = re.split(r"^## (.+)$", text, flags=re.M)
-    sections = {chunks[i].strip(): chunks[i + 1] for i in range(1, len(chunks), 2)}
-    if list(sections) != HEADINGS:
-        raise ValueError("Proposal must contain exactly the seven school headings")
-    found, body_tables = [], []
-    for heading in HEADINGS:
-        outside = [paragraph for paragraph in document.paragraphs
-                   if normalized(paragraph.text) == normalized(heading)]
-        if len(outside) == 1:
-            paragraph = outside[0]
-            block = paragraph._p.getnext()
-            while block is not None and block.tag == qn("w:p") and not list(block.iter(qn("w:t"))):
-                block = block.getnext()
-            if block is None or block.tag != qn("w:tbl"):
-                raise ValueError(f"No content table after school heading: {heading}")
-            table = Table(block, document)
-            cells = list(block.iter(qn("w:tc")))
-            if len(cells) != 1:
-                raise ValueError(f"Expected one school content cell: {heading}")
-            cell = _Cell(cells[0], table)
-            clear_cell(cell)
-            format_paragraph(paragraph, 22, True)
-        else:
-            candidates = []
-            for table in document.tables:
-                for element in table._tbl.iter(qn("w:tc")):
-                    words = "".join(node.text or "" for node in element.iter(qn("w:t")))
-                    if normalized(words).startswith(normalized(heading)):
-                        candidates.append((table, _Cell(element, table)))
-            if len(candidates) != 1:
-                raise ValueError(f"Ambiguous school section: {heading}: {len(candidates)}")
-            table, cell = candidates[0]
-            clear_cell(cell)
-            cell.paragraphs[0].add_run(heading)
-            format_paragraph(cell.paragraphs[0], 22, True)
-        append_markdown(cell, sections[heading], 22)
-        body_tables.append(table)
-        found.append(heading)
-    allow_table_pages(document, body_tables)
-    set_running_style(document)
-    save_draft(document, output)
-    return {"headings": found, "cover_fields": fields, "body_line_points": 22}
-
-
 def review(template, output):
     document = Document(template)
     fields = fill_cover(document, TITLE + "研究综述")
@@ -349,8 +301,7 @@ def main():
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    jobs = [("附件8", "开题报告-邱琨原.docx", proposal),
-            ("附件6", "文献综述-邱琨原.docx", review),
+    jobs = [("附件6", "文献综述-邱琨原.docx", review),
             ("附件11", "开题评审表-邱琨原-待导师评审.docx", assessment)]
     results = {}
     for prefix, filename, build in jobs:

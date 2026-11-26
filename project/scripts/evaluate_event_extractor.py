@@ -10,11 +10,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-import torch
-from peft import PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-
-
 def normalize(value: str) -> str:
     return " ".join(value.strip().split()).lower()
 
@@ -22,11 +17,21 @@ def normalize(value: str) -> str:
 from extraction_schema import parse_json_output, strict_json_output
 
 
-def prf(counts: Counter[str]) -> dict[str, float]:
+def span_text(value: str) -> str:
+    return value.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def evidence_summary(supported: int, predicted: int, samples_with_evidence: int, samples: int):
+    return {"support_precision": supported / predicted if predicted else None,
+            "predicted_spans": predicted, "supported_spans": supported,
+            "sample_coverage": samples_with_evidence / samples if samples else None}
+
+
+def prf(counts: Counter[str]) -> dict[str, float | None]:
     tp, fp, fn = counts["tp"], counts["fp"], counts["fn"]
-    precision = tp / (tp + fp) if tp + fp else (1.0 if fn == 0 else 0.0)
-    recall = tp / (tp + fn) if tp + fn else 1.0
-    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    precision = tp / (tp + fp) if tp + fp else None
+    recall = tp / (tp + fn) if tp + fn else None
+    f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else None
     return {"precision": precision, "recall": recall, "f1": f1}
 
 
@@ -35,10 +40,15 @@ def main() -> None:
     parser.add_argument("--data", type=Path, required=True, help="held-out messages JSONL")
     parser.add_argument("--model", default="Qwen/Qwen3-8B")
     parser.add_argument("--adapter", type=Path)
-    parser.add_argument("--output-dir", type=Path, default=Path("outputs/event_extractor_eval"))
+    parser.add_argument("--output-dir", type=Path, required=True, help="new private directory outside the repository")
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--compute-dtype", choices=("bf16", "fp16"), default="bf16")
     args = parser.parse_args()
+    if args.output_dir.resolve().is_relative_to(Path(__file__).resolve().parents[2]):
+        raise ValueError("Licensed extractor predictions must remain outside the repository")
+    if args.output_dir.exists():
+        raise FileExistsError("Use a new private directory; evaluation records are not overwritten")
+    import torch
     if not torch.cuda.is_available():
         raise RuntimeError("Extractor evaluation requires a CUDA GPU")
     if not args.data.is_file():
@@ -48,6 +58,8 @@ def main() -> None:
     if args.compute_dtype == "bf16" and not torch.cuda.is_bf16_supported():
         raise RuntimeError("GPU does not support bfloat16; use --compute-dtype fp16")
 
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
     dtype = torch.bfloat16 if args.compute_dtype == "bf16" else torch.float16
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     if tokenizer.pad_token_id is None:
@@ -72,9 +84,9 @@ def main() -> None:
     confusion: Counter[tuple[str, str]] = Counter()
     cause_counts: Counter[str] = Counter()
     evidence_counts: Counter[str] = Counter()
-    total = parseable = strict_parseable = supported_evidence = predicted_evidence = 0
+    total = parseable = strict_parseable = supported_evidence = predicted_evidence = samples_with_evidence = 0
     predictions_path = args.output_dir / "predictions.jsonl"
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=False)
     with args.data.open("r", encoding="utf-8") as source, predictions_path.open(
         "w", encoding="utf-8", newline="\n"
     ) as predictions:
@@ -120,9 +132,9 @@ def main() -> None:
             cause_counts["fp"] += len(predicted_causes - gold_causes)
             cause_counts["fn"] += len(gold_causes - predicted_causes)
 
-            gold_evidence = {normalize(value) for value in gold.get("evidence", []) if normalize(value)}
+            gold_evidence = {span_text(value) for value in gold.get("evidence", []) if value.strip()}
             predicted_evidence_set = {
-                normalize(value) for value in (prediction.get("evidence", []) if prediction else []) if normalize(value)
+                span_text(value) for value in (prediction.get("evidence", []) if prediction else []) if value.strip()
             }
             evidence_counts["tp"] += len(gold_evidence & predicted_evidence_set)
             evidence_counts["fp"] += len(predicted_evidence_set - gold_evidence)
@@ -130,11 +142,12 @@ def main() -> None:
             body = item.get("source_text")
             if body is None:
                 user_content = " ".join(message["content"] for message in prompt_messages if message["role"] == "user")
-                match = re.search(r"<公告正文>\s*(.*?)\s*</公告正文>", user_content, re.DOTALL)
+                match = re.search(r"<公告正文>(.*?)</公告正文>", user_content, re.DOTALL)
                 if match is None:
                     raise ValueError("Evaluation requires source_text or marked announcement body")
                 body = match.group(1)
-            source_text = normalize(body)
+            source_text = span_text(body)
+            samples_with_evidence += bool(predicted_evidence_set)
             predicted_evidence += len(predicted_evidence_set)
             supported_evidence += sum(span in source_text for span in predicted_evidence_set)
             predictions.write(json.dumps({
@@ -164,7 +177,8 @@ def main() -> None:
         "direction_f1_by_class": direction_f1,
         "cause_exact_phrase_micro": prf(cause_counts),
         "evidence_exact_span_micro": prf(evidence_counts),
-        "predicted_evidence_supported_by_input_rate": supported_evidence / predicted_evidence if predicted_evidence else 1.0,
+        "predicted_evidence_supported_by_input_rate": supported_evidence / predicted_evidence if predicted_evidence else None,
+        "evidence_coverage_and_support": evidence_summary(supported_evidence, predicted_evidence, samples_with_evidence, total),
         "predictions": str(predictions_path.resolve()),
         "limitation": "Cause/evidence exact match is strict; report it with manual review and direction macro-F1, not alone.",
     }

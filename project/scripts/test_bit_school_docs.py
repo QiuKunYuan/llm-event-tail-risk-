@@ -61,26 +61,11 @@ class SchoolDocumentTests(unittest.TestCase):
             fonts = paragraph.runs[0]._element.get_or_add_rPr().get_or_add_rFonts()
             self.assertEqual(fonts.get(qn("w:eastAsia")), "宋体")
 
-    def test_seven_section_template_is_filled_without_overwriting_original(self):
-        document = self.cover()
-        document.tables[0].rows[0].height = Pt(30)
-        for heading in self.module.HEADINGS:
-            table = document.add_table(rows=1, cols=1)
-            table.cell(0, 0).text = heading + "\n虚构格式提示"
-        template, output = self.path / "template.docx", self.path / "proposal.docx"
-        document.save(template)
-        before = hashlib.sha256(template.read_bytes()).digest()
-        result = self.module.proposal(template, output)
-        self.assertEqual(result["headings"], self.module.HEADINGS)
-        self.assertEqual(hashlib.sha256(template.read_bytes()).digest(), before)
-        self.assertEqual(Document(output).tables[0].rows[0].height, Pt(30))
-        self.assertTrue(any((node.text or "").strip() == "PAGE"
-                            for node in Document(output).sections[-1].footer._element.iter(qn("w:instrText"))))
-        text = "\n".join(cell.text for table in Document(output).tables
-                         for row in table.rows for cell in row.cells)
-        self.assertNotIn("虚构格式提示", text)
-        self.assertIn("6,116,554", text)
-        self.assertIn("金标目前为0", text)
+    def test_retired_short_proposal_not_recreated(self):
+        self.assertFalse(hasattr(self.module, "proposal"))
+        self.assertEqual(self.module.TITLE, "基于多维时序数据融合的短期证券市场风险预测")
+        source = Path(self.module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn('"附件8",', source)
 
     def test_assessment_does_not_fill_committee_result_or_signature(self):
         document = Document()

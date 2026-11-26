@@ -20,7 +20,9 @@ def parse_json_output(text: str) -> dict[str, Any] | None:
         return None
     if not isinstance(value.get("causes"), list) or not isinstance(value.get("evidence"), list):
         return None
-    if not all(isinstance(item, str) for item in value["causes"] + value["evidence"]):
+    if not all(isinstance(item, str) and item.strip() for item in value["causes"] + value["evidence"]):
+        return None
+    if not 1 <= len(value["evidence"]) <= 3:
         return None
     return value
 

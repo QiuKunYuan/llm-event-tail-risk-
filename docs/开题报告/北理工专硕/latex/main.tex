@@ -6,7 +6,7 @@
  info={title={基于多维时序数据融合的短期证券市场风险预测},author={邱琨原},studentId={待填写},
  school={待填写},major={待填写},supervisor={待填写},degree={专业学位硕士},
  classification={待确认},UDC={待确认},defenseDate={待填写},
- keywords={尾部风险,公开时点,公告抽取,机构持股,残差融合}},
+ keywords={实际损失,多维时序,公告抽取,机构持股,概率混合}},
  style={head={北京理工大学专业学位硕士开题报告},betterTimesNewRoman=true,
  pageVerticalAlign=top},misc={tabularFontSize=5}}
 \IfFontExistsTF{Noto Serif CJK SC}{
@@ -25,33 +25,36 @@
 \usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,patterns,matrix}
 \input{figures/figures.tex}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
-\newcommand{\method}{披露年龄约束的有界残差融合}
+\newcommand{\method}{可靠性约束的四档概率混合}
 \newcommand{\source}[1]{\par\smallskip{\small\sffamily\color{inkgray}来源与口径：#1}\par}
 \newcommand{\reporttable}[3]{\begin{table}[tbp]\centering\caption{#1}\label{#2}\small #3\end{table}}
-\newcommand{\reportfigure}[4]{\begin{figure}[tbp]\centering #3\caption{#1}\label{#2}\source{#4}\end{figure}}
+\newcommand{\reportfigure}[4]{\begin{figure}[tbp]\centering\begingroup\setbox0=\hbox{#3}\ifdim\wd0>\linewidth\resizebox{\linewidth}{!}{\box0}\else\box0\fi\endgroup\caption{#1}\label{#2}\source{#4}\end{figure}}
 \setlength{\parindent}{2em}
 \setlength{\parskip}{5.5pt}
 \setlength{\textfloatsep}{16pt plus 2pt minus 2pt}
 \setlength{\intextsep}{14pt plus 2pt minus 2pt}
 \captionsetup{font=small,labelfont=bf}
 \AtBeginDocument{\renewcommand{\normalsize}{\fontsize{12bp}{22bp}\selectfont}\setstretch{1}\normalsize}
+\makeatletter
+\newcommand{\ReportTypesettingCheck}{\typeout{REPORT_BODY_FONT_SIZE_PT=\f@size}\typeout{REPORT_BODY_BASELINE_PT=\the\baselineskip}}
+\makeatother
 \hypersetup{pdftitle={基于多维时序数据融合的短期证券市场风险预测——专业学位硕士开题报告},
  pdfauthor={邱琨原},pdfsubject={两年制专业学位硕士；研究设计与已核数据分析},hidelinks}
 \begin{document}
 \begin{titlepage}
  \centering
- \vspace*{10mm}
+ \vspace*{8mm}
  {\heiti\zihao{1}北京理工大学\par}
- \vspace{18mm}
- {\heiti\zihao{0}专业学位硕士\par}
- \vspace{6mm}
- {\heiti\zihao{0}学位论文开题报告\par}
- \vspace{23mm}
+ \vspace{10mm}
+ {\heiti\zihao{1}专业学位硕士\par}
+ \vspace{4mm}
+ {\heiti\zihao{1}学位论文开题报告\par}
+ \vspace{12mm}
  {\heiti\zihao{2}基于多维时序数据融合的\par 短期证券市场风险预测\par}
- \vspace{20mm}
- {\zihao{3}\renewcommand{\arraystretch}{1.65}
+ \vspace{12mm}
+ {\zihao{4}\renewcommand{\arraystretch}{1.25}
  \begin{tabular}{rl}
- 姓名：&邱琨原\\ 学制：&2年\\ 学号：&待填写\\
+ 姓名：&邱琨原\\ 学制：&2年\\ 入学年级：&待填写\\ 学号：&待填写\\
  类别、领域：&待填写\\ 培养单位：&待填写\\
  校内导师：&待填写\\ 拟申请学位方式：&学位论文\\
  正式开题日期：&待填写
@@ -63,14 +66,18 @@
 \tableofcontents
 \clearpage
 \mainmatter
+% BIThesis mainmatter sets linespread=1.53 for its default 14.4pt baseline.
+% Our explicit 22bp baseline must not be multiplied again.
+\setstretch{1}
 \fontsize{12bp}{22bp}\selectfont
-\input{sections/01_basis.tex}\FloatBarrier
-\input{sections/02_contents.tex}\FloatBarrier
-\input{sections/03_methods.tex}\FloatBarrier
-\input{sections/04_schedule.tex}\FloatBarrier
-\input{sections/05_outputs.tex}\FloatBarrier
-\input{sections/06_innovation.tex}\FloatBarrier
-\input{sections/07_foundation.tex}\FloatBarrier
+\ReportTypesettingCheck
+\input{sections/01_basis.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/02_contents.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/03_methods.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/04_schedule.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/05_outputs.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/06_innovation.tex}\ReportTypesettingCheck\FloatBarrier
+\input{sections/07_foundation.tex}\ReportTypesettingCheck\FloatBarrier
 \clearpage
 \edef\ReportBodyPages{\number\numexpr\value{page}-1\relax}
 \typeout{REPORT_BODY_PAGES=\ReportBodyPages}

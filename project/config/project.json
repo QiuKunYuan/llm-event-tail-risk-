@@ -1,23 +1,14 @@
 {
+  "version": "actual-loss-four-bin-v1-2026-11-26",
+  "title": "基于多维时序数据融合的短期证券市场风险预测",
   "data_root": "/home/admin/workspace/RESSET论文数据",
-  "prediction_sample_start": "2017-02-06",
+  "prediction_sample_start": "2017-01-01",
   "prediction_sample_end": "2024-07-24",
   "label_input_end": "2024-07-31",
-  "target_prediction_sample_start": "2017-02-06",
+  "target_prediction_sample_start": "2017-01-01",
   "target_prediction_sample_end": "2024-07-24",
   "target_label_input_end": "2024-07-31",
-  "factor_series": {
-    "exchange": "2",
-    "market": "A",
-    "primary_weighting": "float_value_weighted",
-    "robustness_weighting": "total_value_weighted"
-  },
-  "tail_label": {
-    "horizon_market_sessions": 5,
-    "factor_regression_lookback": 252,
-    "completed_outcome_lookback": 252,
-    "primary_quantile": 0.10,
-    "robustness_quantile": 0.05,
-    "purge_market_sessions": 5
-  }
+  "factor_series": {"exchange":"2","market":"A","primary_weighting":"float_value_weighted","use":"past_only_market_context_and_historical_residual_diagnostics_not_primary_label"},
+  "loss_label": {"horizon_market_sessions":5,"return_field":"Dret","compounding":"product(1+r)-1","ordinary_loss_threshold":0.0,"primary_loss_threshold":-0.05,"severe_loss_threshold":-0.10,"threshold_inclusive":true,"no_factor_subtraction":true,"future_missing":"unknown_not_negative","universe":"as_of_t_independent_of_future_outcomes","return_convention_certified":false,"historical_universe_certified":false},
+  "study_state": {"human_gold_count":0,"main_graph_ready":false,"real_daily_features_assembled":false,"formal_training_completed":false,"long_report_compiled_30_body_pages":true}
 }

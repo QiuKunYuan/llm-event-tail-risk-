@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build leakage-aware five-trading-day factor-residual tail labels."""
+"""Historical diagnostic only: reproduce the retired FF3 residual labels.
+
+Not the actual-loss primary target; use project/scripts/build_labels.py for it.
+Kept to verify immutable old evidence and its C++/independent SVD reference.
+"""
 
 from __future__ import annotations
 
@@ -42,7 +46,8 @@ def write_selected_factors(source: Path, target: Path) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_ROOT)
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--output", type=Path, required=True,
+                        help="new private historical-diagnostic output, never the primary loss panel")
     args = parser.parse_args()
     root = args.data_root
     processed = root / "processed"

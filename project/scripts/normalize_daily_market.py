@@ -10,25 +10,26 @@ import io
 import json
 import math
 import os
+import sys
+import sqlite3
 import zipfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Iterator, TextIO
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+from prepare_resset import TableSpec, resolve_columns as resolve_source_columns
+
 
 ALIASES: dict[str, tuple[str, ...]] = {
-    "company_code": (
-        "公司代码_CompanyCode",
-        "公司代码()_CompanyCode",
-        "上市公司代码_Comcd",
-        "上市公司代码_ComCd",
-    ),
+    "company_code": ("上市公司代码_Comcd", "上市公司代码_ComCd"),
+    "raw_company_code": ("公司代码_CompanyCode", "公司代码()_CompanyCode"),
+    "raw_security_code": ("证券代码_R_SecuCode",),
     "stock_code": (
         "股票代码_Stkcd",
         "股票代码_StkCd",
         "A股股票代码_A_StkCd",
-        "证券代码_R_SecuCode",
     ),
     "trading_stock_code": ("交易时股票代码_Stkcdotrd", "交易时股票代码_StkCdOTrd"),
     "date": ("日期_Date", "交易日期", "Date", "date"),
@@ -81,6 +82,11 @@ OUTPUT_FIELDS = (
     "cash_dividend",
     "market_cap_total_derived",
     "market_cap_float_derived",
+    "raw_company_code",
+    "raw_security_code",
+    "company_code_field",
+    "source_file",
+    "source_row",
 )
 
 
@@ -89,15 +95,11 @@ def compact(value: str) -> str:
 
 
 def resolve_columns(headers: list[str]) -> dict[str, str]:
-    compacted = {compact(header): header for header in headers if header}
-    resolved: dict[str, str] = {}
-    for field, aliases in ALIASES.items():
-        for alias in aliases:
-            original = compacted.get(compact(alias))
-            if original is not None:
-                resolved[field] = original
-                break
-    return resolved
+    spec = TableSpec("daily_market", (), tuple(ALIASES),
+                     {field: tuple(compact(alias) for alias in aliases)
+                      for field, aliases in ALIASES.items()})
+    resolved = resolve_source_columns({i: compact(header) for i, header in enumerate(headers)}, spec)
+    return {field: headers[index] for field, index in resolved.items()}
 
 
 @contextmanager
@@ -142,7 +144,7 @@ def canonical_date(value: str) -> str:
     if not value:
         return ""
     if len(value) >= 10 and value[4:5] == "-" and value[7:8] == "-":
-        return value[:10]
+        return datetime.strptime(value[:10], "%Y-%m-%d").date().isoformat()
     if len(value) == 8 and value.isdigit():
         return datetime.strptime(value, "%Y%m%d").date().isoformat()
     raise ValueError(f"Unsupported date value: {value!r}")
@@ -160,7 +162,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("project/outputs/processed/daily_market.csv.gz"),
+        required=True,
     )
     parser.add_argument(
         "--require-p0",
@@ -172,8 +174,16 @@ def main() -> None:
         if not path.is_file():
             raise FileNotFoundError(path)
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output.resolve().is_relative_to(Path(__file__).resolve().parents[2]):
+        raise ValueError("Licensed market records must be written outside the repository")
     temp_output = args.output.with_name(args.output.name + ".tmp")
+    key_path = args.output.with_name(args.output.name + ".keys.sqlite")
+    if args.output.exists() or temp_output.exists() or key_path.exists():
+        raise FileExistsError("Use a new private output path; existing records are not overwritten")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    keys = sqlite3.connect(key_path)
+    keys.execute("PRAGMA cache_size=-16384")
+    keys.execute("CREATE TABLE keys(stock TEXT, day TEXT, PRIMARY KEY(stock, day)) WITHOUT ROWID")
     rows_written = 0
     missing_by_file: dict[str, list[str]] = {}
     min_date: str | None = None
@@ -220,7 +230,7 @@ def main() -> None:
                                 f"{source_name}: incomplete P0 export; missing {required_p0}"
                             )
 
-                    for source_row in reader:
+                    for line_number, source_row in enumerate(reader, 2):
                         row = {
                             field: as_output_value(field, source_row.get(columns[field], ""))
                             if field in columns
@@ -228,8 +238,13 @@ def main() -> None:
                             for field in OUTPUT_FIELDS
                             if field not in ("market_cap_total_derived", "market_cap_float_derived")
                         }
+                        row["company_code_field"] = columns.get("company_code", "")
+                        row["source_file"] = source_name
+                        row["source_row"] = str(line_number)
                         if not row["stock_code"] or not row["date"]:
-                            continue
+                            raise ValueError(f"Missing security/date at source row {line_number}")
+                        if len(row["stock_code"]) != 6 or not row["stock_code"].isdigit():
+                            raise ValueError(f"Non-six-digit equity code at source row {line_number}")
                         close = numeric(row.get("close", ""))
                         total_shares = numeric(row.get("total_shares", ""))
                         float_shares = numeric(row.get("listed_float_shares", ""))
@@ -245,16 +260,26 @@ def main() -> None:
                             if close is not None and float_shares is not None
                             else ""
                         )
+                        try:
+                            keys.execute("INSERT INTO keys VALUES (?,?)", (row["stock_code"], row["date"]))
+                        except sqlite3.IntegrityError as exc:
+                            raise ValueError(f"Duplicate security/date at source row {line_number}") from exc
                         writer.writerow(row)
                         current_date = row["date"]
                         min_date = current_date if min_date is None else min(min_date, current_date)
                         max_date = current_date if max_date is None else max(max_date, current_date)
                         rows_written += 1
-        os.replace(temp_output, args.output)
+        if not rows_written:
+            raise ValueError("No market records were written")
+        os.link(temp_output, args.output)
+        temp_output.unlink()
     except Exception:
         if temp_output.exists():
             temp_output.unlink()
         raise
+    finally:
+        keys.close()
+        key_path.unlink(missing_ok=True)
 
     print(
         json.dumps(
@@ -267,7 +292,8 @@ def main() -> None:
                 "notes": [
                     "Market capitalizations are derived as raw close times same-day share counts.",
                     "Check the RESSET dictionary for share definitions and turnover units.",
-                    "This script preserves row order and does not deduplicate stock-date keys.",
+                    "Original row order is preserved; duplicate stock-date keys are rejected, not silently deduplicated.",
+                    "CompanyCode and ComCd are retained as separate namespaces; raw security codes are not equity-code fallbacks.",
                 ],
             },
             ensure_ascii=False,

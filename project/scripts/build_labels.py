@@ -1,39 +1,14 @@
 #!/usr/bin/env python3
-"""Run the repository's existing C++-accelerated label builder from this project."""
+"""Primary label entry point: nullable actual-loss R5 candidates in a NEW private directory.
 
-from __future__ import annotations
-
-import argparse
-import subprocess
-import sys
-from pathlib import Path
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PROJECT_ROOT.parent
-DEFAULT_DATA_ROOT = Path("/home/admin/workspace/RESSET论文数据")
-DEFAULT_OUTPUT = PROJECT_ROOT / "outputs" / "processed" / "tail_risk_labels.csv.gz"
-BUILDER = REPO_ROOT / "scripts" / "build_tail_risk_labels.py"
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    args = parser.parse_args()
-    if not BUILDER.is_file():
-        raise FileNotFoundError(f"Existing label implementation not found: {BUILDER}")
-    command = [
-        sys.executable,
-        str(BUILDER),
-        "--data-root",
-        str(args.data_root.expanduser().resolve()),
-        "--output",
-        str(args.output.expanduser().resolve()),
-    ]
-    subprocess.run(command, check=True)
+Required arguments are --returns, --calendar and --output-dir. This entry point
+no longer invokes the residual-label C++ builder or its old processed outputs.
+Legacy residual source, tables and indices remain untouched diagnostic evidence.
+Use build_loss_index.py and verify_loss_index.py for the new immutable four-fold
+index/readback. Complete raw windows are not certified total-return labels.
+"""
+from build_loss_panel import main
 
 
 if __name__ == "__main__":
     main()
-

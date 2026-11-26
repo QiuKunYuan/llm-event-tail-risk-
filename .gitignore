@@ -1,6 +1,8 @@
 # 数据文件不入库（RESSET授权限制）
 *.xlsx
 *.zip
+# Reviewed 20-file proposal source bundle only; licensed/raw archives stay ignored.
+!docs/开题报告/北理工专硕/开题报告-邱琨原-LaTeX源码.zip
 data/raw/
 RESSET论文数据/
 docs/数据核查/字段验证截图/
