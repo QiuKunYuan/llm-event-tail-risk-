@@ -73,7 +73,7 @@ ID与名称跨期一致&作为主体候选继续核验&原名称、类别、公�
 
 \section{有界残差融合及可检查性质}
 \subsection{将修正幅度和内容分开}
-主干分数由$s_i$与同信息模型共同采用的诉讼控制$c_i$计算，$z_{s,i}=w_s^T[s_i;c_i]+b_s$。仅收益GRU仍不接收$c_i$。公告和图风险头输出$z_e,z_g$，内容修正为$\delta_m=\tanh(z_m)$。对$m\in\{e,g\}$，设置
+主干分数由$s_i$与同信息模型共同采用的市场、行业和诉讼背景$c_i$计算，$z_{s,i}=w_s^T[s_i;c_i]+b_s$。仅收益GRU仍不接收$c_i$。公告和图风险头输出$z_e,z_g$，内容修正为$\delta_m=\tanh(z_m)$。对$m\in\{e,g\}$，设置
 \begin{align}
  a_m&=M_mQ_m e^{-\operatorname{softplus}(\lambda_m)A_m}
  \sigma\{G_m([s;h_m;M_m;A_m;Q_m])\},\\

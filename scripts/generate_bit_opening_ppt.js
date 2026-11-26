@@ -63,7 +63,9 @@ function notesByPage() {
 function validateSources() {
   const contract = JSON.parse(fs.readFileSync(path.join(ROOT, "project/config/experiment_protocol.json"), "utf8"));
   const source = fs.readFileSync(path.join(OUT, "开题报告-邱琨原.md"), "utf8");
-  if (contract.title !== TITLE || contract.sequence_sessions !== 60 ||
+  // This generator preserves the 2026-11-25 historical slide snapshot.
+  const knownTitle = contract.title === TITLE || (contract.previous_titles || []).includes(TITLE);
+  if (!knownTitle || contract.sequence_sessions !== 60 ||
       JSON.stringify(contract.seeds) !== "[42,2024,7,123,3407]") throw new Error("Locked protocol differs");
   for (const token of ["6,116,554", "3,607,689", "金标目前为0", "固定11项消融"]) {
     if (!source.includes(token)) throw new Error(`Source snapshot differs: ${token}`);

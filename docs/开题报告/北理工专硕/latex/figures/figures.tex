@@ -49,7 +49,7 @@
 \begin{tikzpicture}[node distance=7mm and 9mm]
  \node[sb](s0){S：60市场日收益\\三因子与缺失掩码};
  \node[sb,right=of s0](s1){GRU64\\投影 $s_i\in\mathbb R^{128}$};
- \node[box,right=of s1](s2){主干分数 $z_s$\\共同诉讼结构控制};
+ \node[box,right=of s1](s2){主干分数 $z_s$\\市场/行业/诉讼共控};
  \node[eb,below=of s0](e0){E：已生效业绩预告\\原生数值另行保留};
  \node[eb,right=of e0](e1){Qwen抽取与正文缓存\\风险训练学习投影};
  \node[eb,right=of e1](e2){事件表示 $e_i$\\有界修正 $a_e\delta_e$};
@@ -224,6 +224,20 @@
  \node[box,right=of model](rank){每日前10\%排序\\用于人工风险筛查研究};
  \node[box,below=of model,text width=9cm](audit){同模型主干 $z_s$、事件修正、关系修正、可用性与年龄\\原文/名单版本、模型哈希、查询日期与异常状态};
  \draw[arr](input)--(model);\draw[arr](model)--(rank);\draw[arr](model)--(audit);
+\end{tikzpicture}}
+
+\newcommand{\FigMarketIndustry}{
+\begin{tikzpicture}[node distance=10mm and 9mm]
+ \node[sb](market){市场：$2|A$口径\\收益与三因子};
+ \node[sb,right=of market](industry){行业：$g_{i,t}$\\历史公开可见门类};
+ \node[sb,right=of industry](security){证券 $i$\\过去60市场日收益};
+ \node[box,below=of market](mc){市场日收益、5/20累计\\20日波动与下行波动};
+ \node[box,below=of industry](ic){行业日收益、相对市场\\5/20累计及20日波动};
+ \node[box,below=of security](si){GRU64与投影\\$s_i\in\mathbb R^{128}$};
+ \node[box,below=12mm of ic,text width=10cm](out){$z_s(s_i,c_{market},c_{industry},c_{lawsuit})$\\同信息模型共用背景；公告与持股两路仍作有界修正};
+ \draw[arr](market)--(mc);\draw[arr](industry)--(ic);\draw[arr](security)--(si);
+ \draw[arr](mc.south)|-(out.west);\draw[arr](ic)--(out);\draw[arr](si.south)|-(out.east);
+ \node[hint,below=6mm of out,text width=12cm]{主标签保留FF3五日异常尾部；行业正交调整另作稳健性。\\未来市场/行业结果不从标签或事后诊断返回输入。};
 \end{tikzpicture}}
 
 \newcommand{\FigYearCounts}{

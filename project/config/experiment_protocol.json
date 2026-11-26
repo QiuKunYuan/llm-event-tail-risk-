@@ -1,6 +1,10 @@
 {
-  "version": "2026-11-23-age-bounded-residual-v2",
-  "title": "披露时点感知的A股短期尾部风险预测",
+  "version": "2026-11-26-market-industry-context-design-v3",
+  "title": "基于多维时序数据融合的短期证券市场风险预测",
+  "previous_titles": ["披露时点感知的A股短期尾部风险预测"],
+  "prediction_unit": "A_share_company_market_day",
+  "primary_label": "existing_frozen_FF3_five_session_P10",
+  "primary_labels_and_fold_ids_unchanged": true,
   "primary_metric": "AP",
   "fold_aggregation": "equal_weight_mean",
   "daily_top_fraction": 0.1,
@@ -34,5 +38,24 @@
   "seed_aggregation": "mean_seed_AP_not_probability_ensemble",
   "primary_control_selection": "per_fold_validation_seed_mean_AP_excluding_M",
   "bootstrap_scope": "within_fold_whole_market_dates_then_equal_fold_mean",
-  "same_information_text_control": "same_frozen_event_vectors_train_only_PCA64"
+  "same_information_text_control": "same_frozen_event_vectors_train_only_PCA64",
+  "market_industry_context": {
+    "status": "design_pending_CPU_assembly",
+    "market_factor_basis": "2|A_float_FF3",
+    "market_return_basis": "audited_DRET_market_return_float_not_rmrf",
+    "industry_definition": "historically_available_Csrciccd1_sector_not_concept_board",
+    "market_features": ["return_t", "compound_return_5", "compound_return_20", "realized_volatility_20", "downside_volatility_20"],
+    "industry_features": ["return_t", "compound_return_5", "compound_return_20", "realized_volatility_20", "downside_volatility_20", "relative_market_compound_return_5"],
+    "historical_mapping_rule": "publication_available_and_effective_by_t_no_latest_classification_backfill",
+    "lookback_sector": "sector_known_at_prediction_t_applied_to_that_sector_past_index_returns",
+    "same_information_models_share_context": true,
+    "returns_only_baseline_keeps_five_series_fields": true,
+    "additional_price_context_baseline": "GRU_and_strong_trees_with_same_public_market_industry_context",
+    "missing_policy": "no_future_fill_keep_target_company_day_and_context_masks",
+    "features_assembled": false,
+    "graph_sector_confounding_check": "predeclared_industry_composition_preserving_rewire_sensitivity_not_change_11_primary_ablations",
+    "industry_adjusted_label_robustness": "not_built_origin_frozen_FF3_plus_orthogonalized_industry_innovation",
+    "primary_label_is_not_total_raw_loss_risk": true,
+    "regime_evaluation": ["as_of_t_market_trend_volatility", "as_of_t_sector_trend_volatility", "posthoc_five_session_raw_returns_frozen_predictions_only"]
+  }
 }
